@@ -1,6 +1,6 @@
-
 import click
-from api.models import db, User
+from api.models import db, User, CategoryEnum, Product
+
 
 """
 In this file, you can add as many commands as you want using the @app.cli.command decorator
@@ -176,9 +176,7 @@ def setup_commands(app):
         db.drop_all()
         db.create_all()
         
-        # Ejecutar init_db
-        ctx = app.make_shell_context()
         with app.app_context():
-            init_db.callback()
+            init_db()
         
         print("Database reset completed!")
