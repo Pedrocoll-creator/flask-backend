@@ -32,7 +32,66 @@ const Home = () => {
       setFeaturedProducts(response.data.products);
     } catch (error) {
       console.error('Error loading featured products:', error);
-      toast.error('Error al cargar productos destacados');
+      
+      const mockProducts = [
+        {
+          id: 1,
+          name: 'iPhone 15 Pro',
+          description: 'El iPhone más avanzado con chip A17 Pro y cámara de calidad profesional.',
+          price: 999.99,
+          stock: 50,
+          category: 'electronics',
+          image_url: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=300&fit=crop'
+        },
+        {
+          id: 2,
+          name: 'MacBook Air M2',
+          description: 'Potente y portátil con el chip M2 de Apple.',
+          price: 1299.99,
+          stock: 30,
+          category: 'electronics',
+          image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop'
+        },
+        {
+          id: 3,
+          name: 'Auriculares Inalámbricos',
+          description: 'Auriculares con cancelación de ruido y hasta 30 horas de batería.',
+          price: 199.99,
+          stock: 60,
+          category: 'electronics',
+          image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop'
+        },
+        {
+          id: 4,
+          name: 'Camiseta Premium',
+          description: 'Camiseta de algodón 100% orgánico, suave y cómoda.',
+          price: 29.99,
+          stock: 100,
+          category: 'clothing',
+          image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=300&fit=crop'
+        },
+        {
+          id: 5,
+          name: 'Zapatillas Deportivas',
+          description: 'Zapatillas de running con tecnología de amortiguación avanzada.',
+          price: 129.99,
+          stock: 80,
+          category: 'sports',
+          image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop'
+        },
+        {
+          id: 6,
+          name: 'Tablet 10 pulgadas',
+          description: 'Tablet con pantalla HD de 10 pulgadas, perfecta para trabajo y entretenimiento.',
+          price: 299.99,
+          stock: 45,
+          category: 'electronics',
+          image_url: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&h=300&fit=crop'
+        }
+      ];
+      
+      setFeaturedProducts(mockProducts);
+      toast.info('Usando datos de demostración');
     } finally {
       setLoading(false);
     }
@@ -49,7 +108,7 @@ const Home = () => {
       actions.setLoading(true);
       await cartAPI.addToCart({ product_id: product.id, quantity: 1 });
       actions.addToCart({
-        id: Date.now(), // Temporal ID
+        id: Date.now(),
         product_id: product.id,
         product: product,
         quantity: 1
@@ -64,7 +123,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white overflow-hidden">
         <div className="absolute inset-0 bg-black opacity-20"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
@@ -116,12 +174,10 @@ const Home = () => {
           </div>
         </div>
         
-        {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-yellow-300 to-orange-300 rounded-full opacity-10 transform translate-x-48 -translate-y-48"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-purple-300 to-pink-300 rounded-full opacity-10 transform -translate-x-32 translate-y-32"></div>
       </section>
 
-      {/* Features Section */}
       <section className="py-16 bg-secondary-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -167,7 +223,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Categories Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -218,7 +273,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Products Section */}
       <section className="py-16 bg-secondary-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-12">
@@ -336,7 +390,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Newsletter Section */}
       <section className="py-16 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -364,7 +417,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">

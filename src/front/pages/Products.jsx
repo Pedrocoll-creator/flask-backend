@@ -253,7 +253,7 @@ const Products = () => {
                 </div>
               </div>
 
-              {/* Price Range */}
+              
               <div>
                 <h4 className="font-medium text-secondary-900 mb-3">Rango de Precio</h4>
                 <div className="space-y-3">
@@ -306,12 +306,12 @@ const Products = () => {
             </div>
           </div>
 
-          {/* Products Grid */}
+          
           <div className="lg:col-span-3">
-            {/* Toolbar */}
+            
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div className="flex items-center space-x-4">
-                {/* Sort */}
+                
                 <div className="relative">
                   <select
                     value={sortBy}
@@ -454,13 +454,13 @@ const Products = () => {
                   </div>
                 )}
 
-                {/* Results info */}
+                
                 <div className="mt-8 text-center text-sm text-secondary-600">
                   Mostrando {((pagination.page - 1) * pagination.per_page) + 1} - {Math.min(pagination.page * pagination.per_page, pagination.total)} de {pagination.total} productos
                 </div>
               </>
             ) : (
-              /* No results */
+              
               <div className="text-center py-12">
                 <div className="max-w-md mx-auto">
                   <div className="w-24 h-24 mx-auto mb-6 bg-secondary-100 rounded-full flex items-center justify-center">
