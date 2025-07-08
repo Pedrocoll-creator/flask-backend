@@ -23,7 +23,6 @@ static_file_dir = os.path.join(os.path.dirname(
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
-
 db_url = os.getenv("DATABASE_URL")
 if db_url is not None:
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url.replace(
@@ -33,21 +32,21 @@ else:
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-string-change-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False  
 jwt = JWTManager(app)
-
 
 if ENV == "development":
     CORS(app, resources={
         r"/api/*": {
             "origins": [
-                "http://localhost:5173", 
-                "http://localhost:5174", 
-                "http://localhost:3000",  
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:3000",
                 "http://127.0.0.1:5173",
-                "http://127.0.0.1:3000"
+                "http://127.0.0.1:3000",
+                "https://effective-train-x5v9g99w6xpvh979g-5173.app.github.dev",  
+                "https://effective-train-x5v9g99w6xpvh979g-5174.app.github.dev"   
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
@@ -55,19 +54,18 @@ if ENV == "development":
         }
     })
 else:
-   
     CORS(app, resources={
         r"/api/*": {
             "origins": [
-                "https://tu-frontend-domain.onrender.com",  
-                "https://tu-dominio.com"
+                "https://tu-frontend-domain.onrender.com",
+                "https://tu-dominio.com",
+                "https://effective-train-x5v9g99w6xpvh979g-5173.app.github.dev"  
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True
         }
     })
-
 
 MIGRATE = Migrate(app, db, compare_type=True)
 db.init_app(app)
@@ -151,7 +149,6 @@ def serve_react_app(path):
         else:
             return send_from_directory(static_file_dir, 'index.html')
     else:
-      
         return generate_sitemap(app)
 
 
@@ -162,11 +159,13 @@ def log_request_info():
         if request.is_json:
             print(f"Body: {request.get_json()}")
 
+
 @app.after_request
 def after_request(response):
     if ENV == "development":
         print(f"Response: {response.status_code}")
     return response
+
 
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3001))

@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'effective-train-x5v9g99w6xpvh979g-3001.app.github.dev/api/products',
         changeOrigin: true,
       }
     }

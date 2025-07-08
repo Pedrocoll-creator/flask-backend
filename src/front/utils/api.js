@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://effective-train-x5v9g99w6xpvh979g-3001.app.github.dev/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
