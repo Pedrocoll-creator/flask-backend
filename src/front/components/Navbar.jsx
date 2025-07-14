@@ -9,7 +9,8 @@ import {
   Search,
   LogOut,
   Settings,
-  Package
+  Package,
+  Plus
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -43,7 +44,6 @@ const Navbar = () => {
       <nav className="bg-white shadow-sm border-b border-secondary-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
             <div className="flex items-center">
               <Link 
                 to="/" 
@@ -53,7 +53,6 @@ const Navbar = () => {
               </Link>
             </div>
 
-            {/* Navegación principal - Desktop */}
             <div className="hidden md:flex items-center space-x-8">
               <Link 
                 to="/" 
@@ -71,7 +70,6 @@ const Navbar = () => {
                 <button className="font-medium text-secondary-600 hover:text-primary-600 transition-colors">
                   Categorías
                 </button>
-                {/* Dropdown de categorías */}
                 <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-secondary-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                   <div className="py-2">
                     {state.categories.map((category) => (
@@ -88,7 +86,6 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* Barra de búsqueda */}
             <div className="hidden md:flex flex-1 max-w-lg mx-8">
               <form onSubmit={handleSearch} className="w-full">
                 <div className="relative">
@@ -104,9 +101,7 @@ const Navbar = () => {
               </form>
             </div>
 
-            {/* Acciones del usuario */}
             <div className="flex items-center space-x-4">
-              {/* Carrito */}
               <Link 
                 to="/cart" 
                 className="relative p-2 text-secondary-600 hover:text-primary-600 transition-colors"
@@ -119,7 +114,6 @@ const Navbar = () => {
                 )}
               </Link>
 
-              {/* Usuario */}
               {getters.isAuthenticated ? (
                 <div className="relative">
                   <button
@@ -132,7 +126,6 @@ const Navbar = () => {
                     </span>
                   </button>
                   
-                  {/* Dropdown del usuario */}
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-secondary-200 z-10">
                       <div className="py-2">
@@ -151,6 +144,14 @@ const Navbar = () => {
                         >
                           <Package className="w-4 h-4 mr-2" />
                           Mis Pedidos
+                        </Link>
+                        <Link
+                          to="/add-product"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center px-4 py-2 text-sm text-secondary-600 hover:bg-secondary-50 hover:text-primary-600 transition-colors"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Añadir Producto
                         </Link>
                         <hr className="my-2 border-secondary-200" />
                         <button
@@ -181,7 +182,6 @@ const Navbar = () => {
                 </div>
               )}
 
-              {/* Botón menú móvil */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="md:hidden p-2 text-secondary-600 hover:text-primary-600 transition-colors"
@@ -192,11 +192,9 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Menú móvil */}
         {isMenuOpen && (
           <div className="md:hidden bg-white border-t border-secondary-200">
             <div className="px-4 py-4 space-y-4">
-              {/* Búsqueda móvil */}
               <form onSubmit={handleSearch}>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary-400 w-4 h-4" />
@@ -210,7 +208,6 @@ const Navbar = () => {
                 </div>
               </form>
 
-              {/* Enlaces de navegación */}
               <div className="space-y-2">
                 <Link 
                   to="/" 
@@ -227,7 +224,6 @@ const Navbar = () => {
                   Productos
                 </Link>
                 
-                {/* Categorías móvil */}
                 <div className="space-y-1">
                   <div className="py-2 text-secondary-800 font-medium">Categorías</div>
                   {state.categories.map((category) => (
@@ -247,7 +243,6 @@ const Navbar = () => {
         )}
       </nav>
 
-      {/* Overlay para cerrar menús */}
       {(isMenuOpen || isUserMenuOpen) && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-25 z-40"
