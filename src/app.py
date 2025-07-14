@@ -54,12 +54,13 @@ if ENV == "development":
         }
     })
 else:
-    CORS(app, resources={
+   CORS(app, resources={
         r"/api/*": {
             "origins": [
                 "https://tu-frontend-domain.onrender.com",
                 "https://tu-dominio.com",
-                "https://effective-train-x5v9g99w6xpvh979g-5173.app.github.dev"  
+                "https://effective-train-x5v9g99w6xpvh979g-5173.app.github.dev",  # ✅ Tu React
+                "https://effective-train-x5v9g99w6xpvh979g-5174.app.github.dev"   # ✅ Backup
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
