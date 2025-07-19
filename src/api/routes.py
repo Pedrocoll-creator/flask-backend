@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_current_user
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from api.models import db, User, Product, CartItem, Order, OrderItem, CategoryEnum, OrderStatusEnum
 from api.utils import APIException
 from email_validator import validate_email, EmailNotValidError
@@ -14,6 +14,15 @@ import os
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 api = Blueprint('api', __name__)
+
+# Función helper para get_current_user (ya que no está en models.py)
+def get_current_user():
+    """Obtener usuario actual desde JWT token"""
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    if current_user_id:
+        return User.query.get(current_user_id)
+    return None
 
 # ================== RUTAS DE AUTENTICACIÓN ==================
 
