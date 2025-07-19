@@ -130,7 +130,7 @@ const Navbar = () => {
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-secondary-200 z-10">
                       <div className="py-2">
                         <Link
-                          to="/profile"
+                          to="/myprofile"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center px-4 py-2 text-sm text-secondary-600 hover:bg-secondary-50 hover:text-primary-600 transition-colors"
                         >
@@ -138,7 +138,7 @@ const Navbar = () => {
                           Mi Perfil
                         </Link>
                         <Link
-                          to="/orders"
+                          to="/myorders"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center px-4 py-2 text-sm text-secondary-600 hover:bg-secondary-50 hover:text-primary-600 transition-colors"
                         >
@@ -146,7 +146,7 @@ const Navbar = () => {
                           Mis Pedidos
                         </Link>
                         <Link
-                          to="/add-product"
+                          to="/addproduct"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center px-4 py-2 text-sm text-secondary-600 hover:bg-secondary-50 hover:text-primary-600 transition-colors"
                         >
