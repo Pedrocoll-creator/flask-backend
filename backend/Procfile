@@ -1,2 +1,2 @@
-release: pipenv run upgrade
-web: gunicorn wsgi --chdir ./src/
+release: flask db upgrade
+web: gunicorn backend.app:app --bind 0.0.0.0:$PORT --workers 4
