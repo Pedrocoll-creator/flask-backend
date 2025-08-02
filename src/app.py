@@ -1,6 +1,3 @@
-"""
-This module takes care of starting the API Server, Loading the DB and Adding the endpoints
-"""
 import os
 from flask import Flask, request, jsonify, url_for, Blueprint, send_from_directory
 from flask_migrate import Migrate
@@ -11,7 +8,6 @@ from api.utils import APIException, generate_sitemap
 from api.models import db, User
 from api.routes import api
 from api.admin import setup_admin
-# from api.commands import setup_commands  # ← COMENTADO temporalmente
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -23,27 +19,21 @@ static_file_dir = os.path.join(os.path.dirname(
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
-# Configuración de base de datos para Railway
 db_url = os.getenv("DATABASE_URL")
 if db_url is not None:
-    # Railway ya usa postgresql+psycopg:// - no necesita conversión
     if db_url.startswith("postgres://"):
-        # Solo convertir si usa el formato antiguo
         app.config['SQLALCHEMY_DATABASE_URI'] = db_url.replace("postgres://", "postgresql://")
     else:
-        # Railway con psycopg usa postgresql+psycopg:// directamente
         app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:////tmp/test.db"
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configuración JWT
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-string-change-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False  
 jwt = JWTManager(app)
 
-# Configuración CORS
 if ENV == "development":
     CORS(app, resources={
         r"/api/*": {
@@ -76,30 +66,22 @@ else:
         }
     })
 
-# Inicialización
 MIGRATE = Migrate(app, db, compare_type=True)
 db.init_app(app)
 
-# Configurar admin y comandos
 setup_admin(app)
-# setup_commands(app)  # ← COMENTADO temporalmente
 
-# Registrar rutas
 app.register_blueprint(api, url_prefix='/api')
 
-# Configuración JWT - IMPORTANTE para que funcione get_current_user()
 @jwt.user_identity_loader
 def user_identity_lookup(user):
-    """Determinar la identidad del usuario para el token"""
     return user.id if hasattr(user, 'id') else user
 
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
-    """Cargar usuario desde el token JWT"""
     identity = jwt_data["sub"]
     return User.query.filter_by(id=identity).one_or_none()
 
-# Manejadores de errores
 @app.errorhandler(APIException)
 def handle_invalid_usage(error):
     return jsonify(error.to_dict()), error.status_code
@@ -112,7 +94,6 @@ def not_found(error):
 def internal_error(error):
     return jsonify({"msg": "Error interno del servidor"}), 500
 
-# Manejadores JWT
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
     return jsonify({"msg": "Token ha expirado"}), 401
@@ -125,7 +106,6 @@ def invalid_token_callback(error):
 def missing_token_callback(error):
     return jsonify({"msg": "Token de autorización requerido"}), 401
 
-# Rutas principales
 @app.route('/')
 def sitemap():
     if ENV == "development":
@@ -148,11 +128,9 @@ def sitemap():
 
 @app.route('/api/health')
 def health_check():
-    """Endpoint de salud para verificar que la API funciona"""
     try:
-        # Probar conexión a la base de datos
         with app.app_context():
-            db.engine.execute('SELECT 1;')
+            result = db.session.execute(db.text('SELECT 1;'))
         db_status = "connected"
     except Exception as e:
         db_status = f"error: {str(e)}"
@@ -165,7 +143,6 @@ def health_check():
         "database_url": "Railway PostgreSQL" if "railway" in app.config['SQLALCHEMY_DATABASE_URI'] else "Local"
     }), 200
 
-# Servir aplicación React en producción
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react_app(path):
@@ -177,14 +154,12 @@ def serve_react_app(path):
     else:
         return generate_sitemap(app)
 
-# Middleware de logging para desarrollo
 @app.before_request
 def log_request_info():
     if ENV == "development":
         print(f"Request: {request.method} {request.url}")
         if request.is_json:
             body = request.get_json()
-            # No mostrar contraseñas en los logs
             if body and 'password' in body:
                 safe_body = body.copy()
                 safe_body['password'] = '***'
@@ -198,13 +173,10 @@ def after_request(response):
         print(f"Response: {response.status_code}")
     return response
 
-# Función helper para crear datos iniciales
 def create_initial_data():
-    """Crear datos iniciales si no existen"""
     try:
         from api.models import Category, User
         
-        # Crear categorías si no existen
         categories_data = [
             {'name': 'Anillos', 'description': 'Anillos de bisutería'},
             {'name': 'Collares', 'description': 'Collares y gargantillas'},
@@ -222,7 +194,6 @@ def create_initial_data():
                 )
                 db.session.add(category)
         
-        # Crear admin si no existe
         admin = User.query.filter_by(email='admin@onix.com').first()
         if not admin:
             admin = User(
@@ -247,10 +218,8 @@ def create_initial_data():
     except Exception as e:
         print(f"⚠️  Error al crear datos iniciales: {e}")
 
-# Comando para inicializar la base de datos
 @app.cli.command()
 def init_db():
-    """Inicializar base de datos con tablas y datos iniciales"""
     print("🏗️  Creando tablas...")
     db.create_all()
     print("✅ Tablas creadas")
@@ -262,12 +231,10 @@ def init_db():
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3001))
     
-    # En desarrollo, crear tablas automáticamente si no existen
     if ENV == "development":
         with app.app_context():
             try:
-                # Verificar si las tablas existen
-                db.engine.execute('SELECT 1 FROM users LIMIT 1;')
+                result = db.session.execute(db.text('SELECT 1 FROM users LIMIT 1;'))
                 print("✅ Base de datos ya configurada")
             except:
                 print("🏗️  Configurando base de datos por primera vez...")

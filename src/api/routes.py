@@ -1,57 +1,40 @@
-"""
-This module takes care of starting the API Server, Loading the DB and Adding the endpoints
-"""
-from flask import Flask, request, jsonify, url_for, Blueprint
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from api.models import db, User, Product, CartItem, Order, OrderItem, CategoryEnum, OrderStatusEnum
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import create_access_token, jwt_required, get_current_user
+from api.models import db, User, Product, CartItem, Order, OrderItem, Category, OrderStatusEnum, PaymentStatusEnum
 from api.utils import APIException
 from email_validator import validate_email, EmailNotValidError
 from sqlalchemy import or_
 import stripe
 import os
+import uuid
+import secrets
+from datetime import datetime
 
-# Configurar Stripe
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 api = Blueprint('api', __name__)
-
-# Función helper para get_current_user (ya que no está en models.py)
-def get_current_user():
-    """Obtener usuario actual desde JWT token"""
-    from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
-    if current_user_id:
-        return User.query.get(current_user_id)
-    return None
-
-# ================== RUTAS DE AUTENTICACIÓN ==================
 
 @api.route('/register', methods=['POST'])
 def register():
     try:
         body = request.get_json()
         
-        # Validar campos requeridos
         required_fields = ['email', 'password', 'first_name', 'last_name']
         for field in required_fields:
             if field not in body or not body[field]:
                 raise APIException(f"El campo {field} es requerido", status_code=400)
         
-        # Validar email
         try:
             validate_email(body['email'])
         except EmailNotValidError:
             raise APIException("Email no válido", status_code=400)
         
-        # Verificar si el email ya existe
         if User.query.filter_by(email=body['email']).first():
             raise APIException("El email ya está registrado", status_code=400)
         
-        # Validar contraseña
         if len(body['password']) < 6:
             raise APIException("La contraseña debe tener al menos 6 caracteres", status_code=400)
         
-        # Crear usuario
         user = User(
             email=body['email'],
             first_name=body['first_name'],
@@ -59,15 +42,15 @@ def register():
             phone=body.get('phone'),
             address=body.get('address'),
             city=body.get('city'),
-            postal_code=body.get('postal_code')
+            postal_code=body.get('postal_code'),
+            country=body.get('country', 'España')
         )
         user.set_password(body['password'])
         
         db.session.add(user)
         db.session.commit()
         
-        # Crear token de acceso
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=user)
         
         return jsonify({
             "message": "Usuario registrado exitosamente",
@@ -88,7 +71,6 @@ def login():
         if not body.get('email') or not body.get('password'):
             raise APIException("Email y contraseña son requeridos", status_code=400)
         
-        # Buscar usuario
         user = User.query.filter_by(email=body['email']).first()
         
         if not user or not user.check_password(body['password']):
@@ -97,8 +79,7 @@ def login():
         if not user.is_active:
             raise APIException("Cuenta desactivada", status_code=401)
         
-        # Crear token de acceso
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=user)
         
         return jsonify({
             "message": "Login exitoso",
@@ -110,8 +91,6 @@ def login():
         raise e
     except Exception as e:
         raise APIException(f"Error interno del servidor: {str(e)}", status_code=500)
-
-# ================== RUTAS DE USUARIO ==================
 
 @api.route('/profile', methods=['GET'])
 @jwt_required()
@@ -129,17 +108,14 @@ def update_profile():
         current_user = get_current_user()
         body = request.get_json()
         
-        # Actualizar campos permitidos
-        allowed_fields = ['first_name', 'last_name', 'phone', 'address', 'city', 'postal_code']
+        allowed_fields = ['first_name', 'last_name', 'phone', 'address', 'city', 'postal_code', 'country']
         for field in allowed_fields:
             if field in body:
                 setattr(current_user, field, body[field])
         
-        # Validar email si se proporciona
         if 'email' in body:
             try:
                 validate_email(body['email'])
-                # Verificar que el email no esté en uso por otro usuario
                 existing_user = User.query.filter_by(email=body['email']).first()
                 if existing_user and existing_user.id != current_user.id:
                     raise APIException("El email ya está en uso", status_code=400)
@@ -165,7 +141,6 @@ def delete_profile():
     try:
         current_user = get_current_user()
         
-        # Marcar como inactivo en lugar de eliminar
         current_user.is_active = False
         db.session.commit()
         
@@ -174,22 +149,19 @@ def delete_profile():
     except Exception as e:
         raise APIException(f"Error al desactivar cuenta: {str(e)}", status_code=500)
 
-# ================== RUTAS DE PRODUCTOS ==================
-
 @api.route('/products', methods=['GET'])
 def get_products():
     try:
-        # Parámetros de filtro y paginación
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 12, type=int)
-        category = request.args.get('category')
+        category_id = request.args.get('category')
         search = request.args.get('search')
+        featured = request.args.get('featured')
         
-        # Construir query
         query = Product.query.filter_by(is_active=True)
         
-        if category:
-            query = query.filter(Product.category == CategoryEnum(category))
+        if category_id:
+            query = query.filter_by(category_id=category_id)
         
         if search:
             query = query.filter(or_(
@@ -197,8 +169,10 @@ def get_products():
                 Product.description.ilike(f'%{search}%')
             ))
         
-        # Paginación
-        products = query.paginate(
+        if featured:
+            query = query.filter_by(is_featured=True)
+        
+        products = query.order_by(Product.created_at.desc()).paginate(
             page=page, 
             per_page=per_page, 
             error_out=False
@@ -219,7 +193,7 @@ def get_products():
     except Exception as e:
         raise APIException(f"Error al obtener productos: {str(e)}", status_code=500)
 
-@api.route('/products/<int:product_id>', methods=['GET'])
+@api.route('/products/<product_id>', methods=['GET'])
 def get_product(product_id):
     try:
         product = Product.query.filter_by(id=product_id, is_active=True).first()
@@ -237,13 +211,10 @@ def get_product(product_id):
 @api.route('/categories', methods=['GET'])
 def get_categories():
     try:
-        categories = [{"value": category.value, "label": category.value.title()} 
-                     for category in CategoryEnum]
-        return jsonify(categories), 200
+        categories = Category.query.filter_by(is_active=True).order_by(Category.sort_order, Category.name).all()
+        return jsonify([{"value": cat.slug, "label": cat.name} for cat in categories]), 200
     except Exception as e:
         raise APIException(f"Error al obtener categorías: {str(e)}", status_code=500)
-
-# ================== RUTAS DE CARRITO ==================
 
 @api.route('/cart', methods=['GET'])
 @jwt_required()
@@ -252,7 +223,7 @@ def get_cart():
         current_user = get_current_user()
         cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
         
-        total = sum(item.product.price * item.quantity for item in cart_items if item.product)
+        total = sum(item.price * item.quantity for item in cart_items)
         
         return jsonify({
             "items": [item.serialize() for item in cart_items],
@@ -276,33 +247,30 @@ def add_to_cart():
         product_id = body['product_id']
         quantity = body.get('quantity', 1)
         
-        # Verificar que el producto existe y está activo
         product = Product.query.filter_by(id=product_id, is_active=True).first()
         if not product:
             raise APIException("Producto no encontrado", status_code=404)
         
-        # Verificar stock
-        if product.stock < quantity:
+        if product.stock_quantity < quantity:
             raise APIException("Stock insuficiente", status_code=400)
         
-        # Verificar si el item ya está en el carrito
         existing_item = CartItem.query.filter_by(
             user_id=current_user.id, 
             product_id=product_id
         ).first()
         
         if existing_item:
-            # Actualizar cantidad
             new_quantity = existing_item.quantity + quantity
-            if product.stock < new_quantity:
+            if product.stock_quantity < new_quantity:
                 raise APIException("Stock insuficiente", status_code=400)
             existing_item.quantity = new_quantity
+            existing_item.price = product.price
         else:
-            # Crear nuevo item
             cart_item = CartItem(
                 user_id=current_user.id,
                 product_id=product_id,
-                quantity=quantity
+                quantity=quantity,
+                price=product.price
             )
             db.session.add(cart_item)
         
@@ -315,7 +283,7 @@ def add_to_cart():
     except Exception as e:
         raise APIException(f"Error al agregar al carrito: {str(e)}", status_code=500)
 
-@api.route('/cart/<int:item_id>', methods=['PUT'])
+@api.route('/cart/<item_id>', methods=['PUT'])
 @jwt_required()
 def update_cart_item(item_id):
     try:
@@ -332,8 +300,7 @@ def update_cart_item(item_id):
         
         quantity = body.get('quantity', 1)
         
-        # Verificar stock
-        if cart_item.product.stock < quantity:
+        if cart_item.product.stock_quantity < quantity:
             raise APIException("Stock insuficiente", status_code=400)
         
         cart_item.quantity = quantity
@@ -346,7 +313,7 @@ def update_cart_item(item_id):
     except Exception as e:
         raise APIException(f"Error al actualizar carrito: {str(e)}", status_code=500)
 
-@api.route('/cart/<int:item_id>', methods=['DELETE'])
+@api.route('/cart/<item_id>', methods=['DELETE'])
 @jwt_required()
 def remove_from_cart(item_id):
     try:
@@ -370,30 +337,38 @@ def remove_from_cart(item_id):
     except Exception as e:
         raise APIException(f"Error al eliminar del carrito: {str(e)}", status_code=500)
 
-# ================== RUTAS DE PAGO ==================
+@api.route('/cart/clear', methods=['DELETE'])
+@jwt_required()
+def clear_cart():
+    try:
+        current_user = get_current_user()
+        CartItem.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+        
+        return jsonify({"message": "Carrito vaciado"}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        raise APIException(f"Error vaciando carrito: {str(e)}", status_code=500)
 
 @api.route('/create-payment-intent', methods=['POST'])
 @jwt_required()
 def create_payment_intent():
     try:
         current_user = get_current_user()
-        body = request.get_json()
         
-        # Obtener items del carrito
         cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
         
         if not cart_items:
             raise APIException("Carrito vacío", status_code=400)
         
-        # Calcular total
-        total = sum(item.product.price * item.quantity for item in cart_items)
+        total = sum(item.price * item.quantity for item in cart_items)
         
-        # Crear payment intent en Stripe
         intent = stripe.PaymentIntent.create(
-            amount=int(total * 100),  # Stripe usa centavos
-            currency='usd',
+            amount=int(total * 100),
+            currency='eur',
             metadata={
-                'user_id': current_user.id,
+                'user_id': str(current_user.id),
                 'user_email': current_user.email
             }
         )
@@ -421,47 +396,58 @@ def confirm_payment():
         if not payment_intent_id or not shipping_address:
             raise APIException("Datos de pago incompletos", status_code=400)
         
-        # Obtener items del carrito
         cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
         
         if not cart_items:
             raise APIException("Carrito vacío", status_code=400)
         
-        # Calcular total
-        total = sum(item.product.price * item.quantity for item in cart_items)
+        subtotal = sum(item.price * item.quantity for item in cart_items)
+        shipping_amount = 0
+        tax_amount = 0
+        total_amount = subtotal + shipping_amount + tax_amount
         
-        # Crear orden
+        order_number = f"ORD-{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(4).upper()}"
+        
         order = Order(
+            order_number=order_number,
             user_id=current_user.id,
-            total_amount=total,
-            stripe_payment_intent_id=payment_intent_id,
+            status=OrderStatusEnum.CONFIRMED,
+            payment_status=PaymentStatusEnum.PAID,
+            payment_method=body.get('payment_method', 'credit_card'),
+            payment_intent_id=payment_intent_id,
+            subtotal=subtotal,
+            tax_amount=tax_amount,
+            shipping_amount=shipping_amount,
+            total_amount=total_amount,
             shipping_address=shipping_address,
-            status=OrderStatusEnum.PROCESSING
+            billing_address=body.get('billing_address', shipping_address),
+            notes=body.get('notes')
         )
         db.session.add(order)
-        db.session.flush()  # Para obtener el ID de la orden
+        db.session.flush()
         
-        # Crear items de la orden y actualizar stock
         for cart_item in cart_items:
-            # Verificar stock nuevamente
-            if cart_item.product.stock < cart_item.quantity:
+            if cart_item.product.stock_quantity < cart_item.quantity:
                 raise APIException(f"Stock insuficiente para {cart_item.product.name}", status_code=400)
             
-            # Crear item de orden
             order_item = OrderItem(
                 order_id=order.id,
                 product_id=cart_item.product_id,
                 quantity=cart_item.quantity,
-                price=cart_item.product.price
+                price=cart_item.price,
+                total=cart_item.price * cart_item.quantity,
+                product_snapshot={
+                    "name": cart_item.product.name,
+                    "description": cart_item.product.description,
+                    "image_url": cart_item.product.image_url,
+                    "price": float(cart_item.price)
+                }
             )
             db.session.add(order_item)
             
-            # Actualizar stock
-            cart_item.product.stock -= cart_item.quantity
+            cart_item.product.stock_quantity -= cart_item.quantity
         
-        # Limpiar carrito
-        for cart_item in cart_items:
-            db.session.delete(cart_item)
+        CartItem.query.filter_by(user_id=current_user.id).delete()
         
         db.session.commit()
         
@@ -477,8 +463,6 @@ def confirm_payment():
         db.session.rollback()
         raise APIException(f"Error al confirmar pago: {str(e)}", status_code=500)
 
-# ================== RUTAS DE ÓRDENES ==================
-
 @api.route('/orders', methods=['GET'])
 @jwt_required()
 def get_orders():
@@ -491,7 +475,7 @@ def get_orders():
     except Exception as e:
         raise APIException(f"Error al obtener órdenes: {str(e)}", status_code=500)
 
-@api.route('/orders/<int:order_id>', methods=['GET'])
+@api.route('/orders/<order_id>', methods=['GET'])
 @jwt_required()
 def get_order(order_id):
     try:
@@ -508,33 +492,34 @@ def get_order(order_id):
     except Exception as e:
         raise APIException(f"Error al obtener orden: {str(e)}", status_code=500)
 
-# ================== RUTAS ADMIN (CRUD PRODUCTOS) ==================
-
 @api.route('/admin/products', methods=['POST'])
 @jwt_required()
 def create_product():
     try:
-        # Nota: En producción, deberías verificar que el usuario sea admin
         body = request.get_json()
         
-        required_fields = ['name', 'price', 'stock', 'category']
+        required_fields = ['name', 'price', 'stock_quantity', 'category_id']
         for field in required_fields:
             if field not in body:
                 raise APIException(f"El campo {field} es requerido", status_code=400)
         
-        # Validar categoría
-        try:
-            category = CategoryEnum(body['category'])
-        except ValueError:
+        category = Category.query.filter_by(id=body['category_id']).first()
+        if not category:
             raise APIException("Categoría inválida", status_code=400)
+        
+        product_slug = body['name'].lower().replace(' ', '-').replace('ñ', 'n')
         
         product = Product(
             name=body['name'],
+            slug=product_slug,
             description=body.get('description'),
+            short_description=body.get('short_description'),
             price=body['price'],
-            stock=body['stock'],
-            category=category,
-            image_url=body.get('image_url')
+            stock_quantity=body['stock_quantity'],
+            category_id=body['category_id'],
+            vendor_id=get_current_user().id,
+            image_url=body.get('image_url'),
+            is_featured=body.get('is_featured', False)
         )
         
         db.session.add(product)
@@ -550,7 +535,7 @@ def create_product():
     except Exception as e:
         raise APIException(f"Error al crear producto: {str(e)}", status_code=500)
 
-@api.route('/admin/products/<int:product_id>', methods=['PUT'])
+@api.route('/admin/products/<product_id>', methods=['PUT'])
 @jwt_required()
 def update_product(product_id):
     try:
@@ -561,18 +546,19 @@ def update_product(product_id):
         
         body = request.get_json()
         
-        # Actualizar campos permitidos
-        allowed_fields = ['name', 'description', 'price', 'stock', 'image_url', 'is_active']
+        allowed_fields = ['name', 'description', 'short_description', 'price', 'stock_quantity', 'image_url', 'is_active', 'is_featured']
         for field in allowed_fields:
             if field in body:
                 setattr(product, field, body[field])
         
-        # Manejar categoría
-        if 'category' in body:
-            try:
-                product.category = CategoryEnum(body['category'])
-            except ValueError:
+        if 'category_id' in body:
+            category = Category.query.filter_by(id=body['category_id']).first()
+            if not category:
                 raise APIException("Categoría inválida", status_code=400)
+            product.category_id = body['category_id']
+        
+        if 'name' in body:
+            product.slug = body['name'].lower().replace(' ', '-').replace('ñ', 'n')
         
         db.session.commit()
         
@@ -586,7 +572,7 @@ def update_product(product_id):
     except Exception as e:
         raise APIException(f"Error al actualizar producto: {str(e)}", status_code=500)
 
-@api.route('/admin/products/<int:product_id>', methods=['DELETE'])
+@api.route('/admin/products/<product_id>', methods=['DELETE'])
 @jwt_required()
 def delete_product(product_id):
     try:
@@ -595,7 +581,6 @@ def delete_product(product_id):
         if not product:
             raise APIException("Producto no encontrado", status_code=404)
         
-        # Marcar como inactivo en lugar de eliminar
         product.is_active = False
         db.session.commit()
         
