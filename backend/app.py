@@ -3,7 +3,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -15,9 +15,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 ENV = "development" if os.getenv("FLASK_DEBUG") == "1" else "production"
-static_file_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../public/')
-app = Flask(__name__)
+static_file_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'static')
+app = Flask(__name__, static_folder='static', static_url_path='')
 app.url_map.strict_slashes = False
+
 db_url = os.getenv("DATABASE_URL")
 if db_url is not None:
     if db_url.startswith("postgres://"):
@@ -26,6 +27,7 @@ if db_url is not None:
         app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:////tmp/test.db"
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-string-change-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
@@ -71,8 +73,9 @@ def invalid_token_callback(error):
 def missing_token_callback(error):
     return jsonify({"msg": "Token de autorización requerido"}), 401
 
-@app.route('/')
-def sitemap():
+# API Routes (mantener para desarrollo)
+@app.route('/api')
+def api_info():
     if ENV == "development":
         return generate_sitemap(app)
     return jsonify({
@@ -107,16 +110,37 @@ def health_check():
         "database_url": "Railway PostgreSQL" if "railway" in app.config['SQLALCHEMY_DATABASE_URI'] else "Local"
     }), 200
 
+# Servir archivos estáticos de React
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    return send_from_directory(static_file_dir, filename)
+
+# Servir React App (SPA - Single Page Application)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react_app(path):
-    if ENV == "production":
-        if path != "" and os.path.exists(os.path.join(static_file_dir, path)):
-            return send_from_directory(static_file_dir, path)
-        else:
-            return send_from_directory(static_file_dir, 'index.html')
-    else:
-        return generate_sitemap(app)
+    # Si es una ruta de API, devolver 404
+    if path.startswith('api/'):
+        return jsonify({"error": "API endpoint not found"}), 404
+    
+    # Si es una ruta de admin, dejar que Flask-Admin la maneje
+    if path.startswith('admin'):
+        return not_found(None)
+    
+    # Si el archivo existe, servirlo
+    if path != "" and os.path.exists(os.path.join(static_file_dir, path)):
+        return send_from_directory(static_file_dir, path)
+    
+    # Para todas las demás rutas, servir index.html (React Router)
+    try:
+        return send_from_directory(static_file_dir, 'index.html')
+    except:
+        # Si no existe index.html (aún no hay build), mostrar mensaje
+        return jsonify({
+            "message": "React app not built yet",
+            "api_available": "/api/",
+            "admin_available": "/admin"
+        })
 
 @app.before_request
 def log_request_info():
