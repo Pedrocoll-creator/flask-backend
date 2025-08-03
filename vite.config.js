@@ -3,10 +3,14 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true
+  },
   server: {
     proxy: {
       '/api': {
-        target: 'effective-train-x5v9g99w6xpvh979g-3001.app.github.dev/api/products',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       }
     }
