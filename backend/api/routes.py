@@ -1,3 +1,4 @@
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_current_user
 from api.models import db, User, Product, CartItem, Order, OrderItem, Category, OrderStatusEnum, PaymentStatusEnum
@@ -589,7 +590,244 @@ def delete_product(product_id):
     except Exception as e:
         raise APIException(f"Error al eliminar producto: {str(e)}", status_code=500)
 
+500)
 
-@api.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()}), 200
+@api.route('/create-payment-intent', methods=['POST'])
+@jwt_required()
+def create_payment_intent():
+    try:
+        current_user = get_current_user()
+        
+        cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+        
+        if not cart_items:
+            raise APIException("Carrito vacío", status_code=400)
+        
+        total = sum(item.price * item.quantity for item in cart_items)
+        
+        intent = stripe.PaymentIntent.create(
+            amount=int(total * 100),
+            currency='eur',
+            metadata={
+                'user_id': str(current_user.id),
+                'user_email': current_user.email
+            }
+        )
+        
+        return jsonify({
+            'client_secret': intent.client_secret,
+            'amount': float(total)
+        }), 200
+        
+    except APIException as e:
+        raise e
+    except Exception as e:
+        raise APIException(f"Error al crear intento de pago: {str(e)}", status_code=500)
+
+@api.route('/confirm-payment', methods=['POST'])
+@jwt_required()
+def confirm_payment():
+    try:
+        current_user = get_current_user()
+        body = request.get_json()
+        
+        payment_intent_id = body.get('payment_intent_id')
+        shipping_address = body.get('shipping_address')
+        
+        if not payment_intent_id or not shipping_address:
+            raise APIException("Datos de pago incompletos", status_code=400)
+        
+        cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+        
+        if not cart_items:
+            raise APIException("Carrito vacío", status_code=400)
+        
+        subtotal = sum(item.price * item.quantity for item in cart_items)
+        shipping_amount = 0
+        tax_amount = 0
+        total_amount = subtotal + shipping_amount + tax_amount
+        
+        order_number = f"ORD-{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(4).upper()}"
+        
+        order = Order(
+            order_number=order_number,
+            user_id=current_user.id,
+            status=OrderStatusEnum.CONFIRMED,
+            payment_status=PaymentStatusEnum.PAID,
+            payment_method=body.get('payment_method', 'credit_card'),
+            payment_intent_id=payment_intent_id,
+            subtotal=subtotal,
+            tax_amount=tax_amount,
+            shipping_amount=shipping_amount,
+            total_amount=total_amount,
+            shipping_address=shipping_address,
+            billing_address=body.get('billing_address', shipping_address),
+            notes=body.get('notes')
+        )
+        db.session.add(order)
+        db.session.flush()
+        
+        for cart_item in cart_items:
+            if cart_item.product.stock_quantity < cart_item.quantity:
+                raise APIException(f"Stock insuficiente para {cart_item.product.name}", status_code=400)
+            
+            order_item = OrderItem(
+                order_id=order.id,
+                product_id=cart_item.product_id,
+                quantity=cart_item.quantity,
+                price=cart_item.price,
+                total=cart_item.price * cart_item.quantity,
+                product_snapshot={
+                    "name": cart_item.product.name,
+                    "description": cart_item.product.description,
+                    "image_url": cart_item.product.image_url,
+                    "price": float(cart_item.price)
+                }
+            )
+            db.session.add(order_item)
+            
+            cart_item.product.stock_quantity -= cart_item.quantity
+        
+        CartItem.query.filter_by(user_id=current_user.id).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Pago confirmado exitosamente",
+            "order": order.serialize()
+        }), 200
+        
+    except APIException as e:
+        db.session.rollback()
+        raise e
+    except Exception as e:
+        db.session.rollback()
+        raise APIException(f"Error al confirmar pago: {str(e)}", status_code=500)
+
+@api.route('/orders', methods=['GET'])
+@jwt_required()
+def get_orders():
+    try:
+        current_user = get_current_user()
+        orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.created_at.desc()).all()
+        
+        return jsonify([order.serialize() for order in orders]), 200
+        
+    except Exception as e:
+        raise APIException(f"Error al obtener órdenes: {str(e)}", status_code=500)
+
+@api.route('/orders/<order_id>', methods=['GET'])
+@jwt_required()
+def get_order(order_id):
+    try:
+        current_user = get_current_user()
+        order = Order.query.filter_by(id=order_id, user_id=current_user.id).first()
+        
+        if not order:
+            raise APIException("Orden no encontrada", status_code=404)
+        
+        return jsonify(order.serialize()), 200
+        
+    except APIException as e:
+        raise e
+    except Exception as e:
+        raise APIException(f"Error al obtener orden: {str(e)}", status_code=500)
+
+@api.route('/admin/products', methods=['POST'])
+@jwt_required()
+def create_product():
+    try:
+        body = request.get_json()
+        
+        required_fields = ['name', 'price', 'stock_quantity', 'category_id']
+        for field in required_fields:
+            if field not in body:
+                raise APIException(f"El campo {field} es requerido", status_code=400)
+        
+        category = Category.query.filter_by(id=body['category_id']).first()
+        if not category:
+            raise APIException("Categoría inválida", status_code=400)
+        
+        product_slug = body['name'].lower().replace(' ', '-').replace('ñ', 'n')
+        
+        product = Product(
+            name=body['name'],
+            slug=product_slug,
+            description=body.get('description'),
+            short_description=body.get('short_description'),
+            price=body['price'],
+            stock_quantity=body['stock_quantity'],
+            category_id=body['category_id'],
+            vendor_id=get_current_user().id,
+            image_url=body.get('image_url'),
+            is_featured=body.get('is_featured', False)
+        )
+        
+        db.session.add(product)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Producto creado exitosamente",
+            "product": product.serialize()
+        }), 201
+        
+    except APIException as e:
+        raise e
+    except Exception as e:
+        raise APIException(f"Error al crear producto: {str(e)}", status_code=500)
+
+@api.route('/admin/products/<product_id>', methods=['PUT'])
+@jwt_required()
+def update_product(product_id):
+    try:
+        product = Product.query.get(product_id)
+        
+        if not product:
+            raise APIException("Producto no encontrado", status_code=404)
+        
+        body = request.get_json()
+        
+        allowed_fields = ['name', 'description', 'short_description', 'price', 'stock_quantity', 'image_url', 'is_active', 'is_featured']
+        for field in allowed_fields:
+            if field in body:
+                setattr(product, field, body[field])
+        
+        if 'category_id' in body:
+            category = Category.query.filter_by(id=body['category_id']).first()
+            if not category:
+                raise APIException("Categoría inválida", status_code=400)
+            product.category_id = body['category_id']
+        
+        if 'name' in body:
+            product.slug = body['name'].lower().replace(' ', '-').replace('ñ', 'n')
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Producto actualizado exitosamente",
+            "product": product.serialize()
+        }), 200
+        
+    except APIException as e:
+        raise e
+    except Exception as e:
+        raise APIException(f"Error al actualizar producto: {str(e)}", status_code=500)
+
+@api.route('/admin/products/<product_id>', methods=['DELETE'])
+@jwt_required()
+def delete_product(product_id):
+    try:
+        product = Product.query.get(product_id)
+        
+        if not product:
+            raise APIException("Producto no encontrado", status_code=404)
+        
+        product.is_active = False
+        db.session.commit()
+        
+        return jsonify({"message": "Producto eliminado exitosamente"}), 200
+        
+    except Exception as e:
+        raise APIException(f"Error al eliminar producto: {str(e)}", status_code=500)
+
+
