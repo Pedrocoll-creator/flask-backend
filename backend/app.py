@@ -73,7 +73,6 @@ def invalid_token_callback(error):
 def missing_token_callback(error):
     return jsonify({"msg": "Token de autorización requerido"}), 401
 
-# API Routes (mantener para desarrollo)
 @app.route('/api')
 def api_info():
     if ENV == "development":
@@ -110,32 +109,25 @@ def health_check():
         "database_url": "Railway PostgreSQL" if "railway" in app.config['SQLALCHEMY_DATABASE_URI'] else "Local"
     }), 200
 
-# Servir archivos estáticos de React
 @app.route('/static/<path:filename>')
 def static_files(filename):
     return send_from_directory(static_file_dir, filename)
 
-# Servir React App (SPA - Single Page Application)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react_app(path):
-    # Si es una ruta de API, devolver 404
     if path.startswith('api/'):
         return jsonify({"error": "API endpoint not found"}), 404
     
-    # Si es una ruta de admin, dejar que Flask-Admin la maneje
     if path.startswith('admin'):
-        return not_found(None)
+        pass
     
-    # Si el archivo existe, servirlo
     if path != "" and os.path.exists(os.path.join(static_file_dir, path)):
         return send_from_directory(static_file_dir, path)
     
-    # Para todas las demás rutas, servir index.html (React Router)
     try:
         return send_from_directory(static_file_dir, 'index.html')
     except:
-        # Si no existe index.html (aún no hay build), mostrar mensaje
         return jsonify({
             "message": "React app not built yet",
             "api_available": "/api/",
