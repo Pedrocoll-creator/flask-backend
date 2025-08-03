@@ -588,3 +588,8 @@ def delete_product(product_id):
         
     except Exception as e:
         raise APIException(f"Error al eliminar producto: {str(e)}", status_code=500)
+
+
+@api.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()}), 200
