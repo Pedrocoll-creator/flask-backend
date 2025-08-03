@@ -122,6 +122,7 @@ class Product(db.Model):
     
     cart_items = db.relationship('CartItem', backref='product', lazy=True)
     order_items = db.relationship('OrderItem', backref='product', lazy=True)
+    variants = db.relationship('ProductVariant', backref='product', lazy=True, cascade='all, delete-orphan')
     vendor = db.relationship('User', backref='products', foreign_keys=[vendor_id])
 
     def __repr__(self):
@@ -174,6 +175,39 @@ class CartItem(db.Model):
             "quantity": self.quantity,
             "price": float(self.price) if self.price else None,
             "subtotal": float(self.price * self.quantity) if self.price else 0,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
+class ProductVariant(db.Model):
+    __tablename__ = 'product_variants'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id = db.Column(UUID(as_uuid=True), db.ForeignKey('products.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    sku = db.Column(db.String(100), unique=True, nullable=True)
+    price = db.Column(db.Numeric(10, 2), nullable=True)
+    stock_quantity = db.Column(db.Integer, nullable=False, default=0)
+    attributes = db.Column(JSONB, nullable=False, default=dict)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    cart_items = db.relationship('CartItem', backref='product_variant', lazy=True)
+    order_items = db.relationship('OrderItem', backref='product_variant', lazy=True)
+
+    def __repr__(self):
+        return f'<ProductVariant {self.name}>'
+
+    def serialize(self):
+        return {
+            "id": str(self.id),
+            "product_id": str(self.product_id),
+            "name": self.name,
+            "sku": self.sku,
+            "price": float(self.price) if self.price else None,
+            "stock_quantity": self.stock_quantity,
+            "attributes": self.attributes,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
