@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://believable-charm-production.up.railway.app/api';
+const API_BASE_URL = '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -21,13 +21,21 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+let onUnauthorizedCallback = null;
+
+export const setUnauthorizedHandler = (callback) => {
+  onUnauthorizedCallback = callback;
+};
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (typeof onUnauthorizedCallback === 'function') {
+        onUnauthorizedCallback();
+      }
     }
     return Promise.reject(error);
   }
@@ -75,24 +83,15 @@ export const handleAPIError = (error) => {
   if (error.response) {
     const status = error.response.status;
     const message = error.response.data?.message || error.response.data?.error;
-    
     switch (status) {
-      case 400:
-        return message || 'Datos inválidos';
-      case 401:
-        return 'No autorizado';
-      case 403:
-        return 'Acceso denegado';
-      case 404:
-        return 'Recurso no encontrado';
-      case 409:
-        return message || 'Conflicto de datos';
-      case 422:
-        return message || 'Datos no procesables';
-      case 500:
-        return 'Error interno del servidor';
-      default:
-        return message || 'Error del servidor';
+      case 400: return message || 'Datos inválidos';
+      case 401: return 'No autorizado';
+      case 403: return 'Acceso denegado';
+      case 404: return 'Recurso no encontrado';
+      case 409: return message || 'Conflicto de datos';
+      case 422: return message || 'Datos no procesables';
+      case 500: return 'Error interno del servidor';
+      default: return message || 'Error del servidor';
     }
   }
   if (error.request) {
@@ -111,7 +110,7 @@ export const formatPrice = (price) => {
 export const formatDate = (dateString) => {
   return new Intl.DateTimeFormat('es-ES', {
     year: 'numeric',
-    month: 'long', 
+    month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
