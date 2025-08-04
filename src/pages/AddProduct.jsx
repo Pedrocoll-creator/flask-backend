@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
+import { productsAPI, handleAPIError } from '../utils/api';
 import { 
   Package, 
   Upload, 
@@ -31,18 +32,14 @@ const AddProduct = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [categories, setCategories] = useState([]);
 
-  // Cargar categorías al montar el componente
   useEffect(() => {
     loadCategories();
   }, []);
 
   const loadCategories = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/categories`);
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
+      const response = await productsAPI.getCategories();
+      setCategories(response.data || []);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
@@ -85,8 +82,6 @@ const AddProduct = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const token = localStorage.getItem('token');
-      
       const productData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
@@ -96,39 +91,25 @@ const AddProduct = () => {
         image_url: formData.image_url.trim() || null
       };
 
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/products`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(productData)
+      const response = await productsAPI.createProduct(productData);
+
+      setMessage({ type: 'success', text: 'Producto creado exitosamente' });
+      
+      setFormData({
+        name: '',
+        description: '',
+        price: '',
+        stock: '',
+        category: '',
+        image_url: ''
       });
 
-      const data = await response.json();
+      setTimeout(() => {
+        navigate('/products');
+      }, 2000);
 
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Producto creado exitosamente' });
-        
-        // Limpiar formulario
-        setFormData({
-          name: '',
-          description: '',
-          price: '',
-          stock: '',
-          category: '',
-          image_url: ''
-        });
-
-        // Redirigir después de 2 segundos
-        setTimeout(() => {
-          navigate('/products');
-        }, 2000);
-      } else {
-        setMessage({ type: 'error', text: data.message || 'Error al crear el producto' });
-      }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Error de conexión. Inténtalo de nuevo.' });
+      setMessage({ type: 'error', text: handleAPIError(error) });
     } finally {
       setLoading(false);
     }
@@ -137,8 +118,6 @@ const AddProduct = () => {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Aquí podrías implementar subida a un servicio como Cloudinary
-      // Por ahora, solo mostramos el nombre del archivo
       setFormData(prev => ({
         ...prev,
         image_url: URL.createObjectURL(file)
@@ -149,7 +128,6 @@ const AddProduct = () => {
   return (
     <div className="min-h-screen bg-secondary-50 py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate(-1)}
@@ -170,7 +148,6 @@ const AddProduct = () => {
           </div>
         </div>
 
-        {/* Mensaje de estado */}
         {message.text && (
           <div className={`mb-6 p-4 rounded-lg flex items-center space-x-3 ${
             message.type === 'success' 
@@ -186,17 +163,14 @@ const AddProduct = () => {
           </div>
         )}
 
-        {/* Formulario */}
         <div className="bg-white rounded-xl shadow-sm border border-secondary-200 overflow-hidden">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             
-            {/* Información básica */}
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-secondary-900 border-b border-secondary-200 pb-2">
                 Información Básica
               </h2>
               
-              {/* Nombre del producto */}
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
                   <FileText className="w-4 h-4 inline mr-1" />
@@ -213,7 +187,6 @@ const AddProduct = () => {
                 />
               </div>
 
-              {/* Descripción */}
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
                   Descripción
@@ -228,7 +201,6 @@ const AddProduct = () => {
                 />
               </div>
 
-              {/* Categoría */}
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
                   <Tag className="w-4 h-4 inline mr-1" />
@@ -251,14 +223,12 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* Precio y Stock */}
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-secondary-900 border-b border-secondary-200 pb-2">
                 Precio y Disponibilidad
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Precio */}
                 <div>
                   <label className="block text-sm font-medium text-secondary-700 mb-2">
                     <DollarSign className="w-4 h-4 inline mr-1" />
@@ -277,7 +247,6 @@ const AddProduct = () => {
                   />
                 </div>
 
-                {/* Stock */}
                 <div>
                   <label className="block text-sm font-medium text-secondary-700 mb-2">
                     <Hash className="w-4 h-4 inline mr-1" />
@@ -297,14 +266,12 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* Imagen */}
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-secondary-900 border-b border-secondary-200 pb-2">
                 Imagen del Producto
               </h2>
               
               <div className="space-y-4">
-                {/* URL de imagen */}
                 <div>
                   <label className="block text-sm font-medium text-secondary-700 mb-2">
                     URL de la Imagen
@@ -319,7 +286,6 @@ const AddProduct = () => {
                   />
                 </div>
 
-                {/* Subir archivo */}
                 <div className="text-center">
                   <div className="text-sm text-secondary-500 mb-2">o</div>
                   <label className="cursor-pointer">
@@ -339,7 +305,6 @@ const AddProduct = () => {
                   </label>
                 </div>
 
-                {/* Preview de imagen */}
                 {formData.image_url && (
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-secondary-700 mb-2">
@@ -360,7 +325,6 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* Botones */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-secondary-200">
               <button
                 type="button"
