@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
 import { productsAPI, handleAPIError } from '../utils/api.js';
@@ -30,20 +30,6 @@ const AddProduct = () => {
   
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [categories, setCategories] = useState([]);
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      const response = await productsAPI.getCategories();
-      setCategories(response.data);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -91,8 +77,12 @@ const AddProduct = () => {
         image_url: formData.image_url.trim() || null
       };
 
-      const response = await productsAPI.createProduct(productData);
+      console.log('Sending product data:', productData);
 
+      const response = await productsAPI.createProduct(productData);
+      console.log('Product created successfully:', response);
+
+      actions.addProduct(response.data);
       setMessage({ type: 'success', text: 'Producto creado exitosamente' });
       
       setFormData({
@@ -108,8 +98,23 @@ const AddProduct = () => {
         navigate('/products');
       }, 2000);
     } catch (error) {
-      console.error('Error creating product:', error);
-      setMessage({ type: 'error', text: handleAPIError(error) });
+      console.error('Full error object:', error);
+      console.error('Error response:', error.response);
+      console.error('Error message:', error.message);
+      
+      let errorMessage = 'Error al crear el producto';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = handleAPIError(error);
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -214,9 +219,9 @@ const AddProduct = () => {
                   required
                 >
                   <option value="">Selecciona una categoría</option>
-                  {categories.map((category) => (
-                    <option key={category.value || category.id} value={category.value || category.name}>
-                      {category.label || category.name}
+                  {state.categories.map((category) => (
+                    <option key={category.value} value={category.value}>
+                      {category.label}
                     </option>
                   ))}
                 </select>

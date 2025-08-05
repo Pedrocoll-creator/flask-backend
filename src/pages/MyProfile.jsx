@@ -58,14 +58,32 @@ const MyProfile = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const response = await authAPI.updateProfile(formData);
+      console.log('Updating profile with data:', formData);
       
-      actions.setUser(response.data.user);
+      const response = await authAPI.updateProfile(formData);
+      console.log('Profile update response:', response);
+      
+      actions.updateUser(response.data?.user || response.data);
+      
       setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' });
       setIsEditing(false);
     } catch (error) {
-      console.error('Error updating profile:', error);
-      setMessage({ type: 'error', text: handleAPIError(error) });
+      console.error('Full error object:', error);
+      console.error('Error response:', error.response);
+      
+      let errorMessage = 'Error al actualizar perfil';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = handleAPIError(error);
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
