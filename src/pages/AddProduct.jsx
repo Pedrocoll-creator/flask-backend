@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
 import { productsAPI, handleAPIError } from '../utils/api.js';
@@ -30,6 +30,22 @@ const AddProduct = () => {
   
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const response = await productsAPI.getCategories();
+      console.log('Categories from API:', response.data || response);
+      setCategories(response.data || response);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      setCategories(state.categories);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -229,9 +245,9 @@ const AddProduct = () => {
                   required
                 >
                   <option value="">Selecciona una categoría</option>
-                  {state.categories.map((category) => (
-                    <option key={category.value} value={category.value}>
-                      {category.label}
+                  {categories.map((category) => (
+                    <option key={category.id || category.value} value={category.id || category.value}>
+                      {category.name || category.label}
                     </option>
                   ))}
                 </select>
