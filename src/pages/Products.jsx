@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
-import { productsAPI, handleAPIError } from '../utils/api';
-import ProductCard from '../components/ProductCard';
+import { productsAPI, categoriesAPI, handleAPIError } from '../services/api';
+import ProductImage from './ProductImage';
 import { 
   Search, 
   Filter, 
@@ -11,15 +11,20 @@ import {
   Grid, 
   List,
   SlidersHorizontal,
-  ArrowUpDown
+  ArrowUpDown,
+  ShoppingCart,
+  Heart,
+  Eye,
+  Star
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const Products = () => {
-  const { state, actions } = useStore();
+  const { state, actions, getters } = useStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
+  // Estados principales
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -31,6 +36,7 @@ const Products = () => {
     has_prev: false
   });
   
+  // Estados de filtros
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'name');
@@ -48,26 +54,17 @@ const Products = () => {
     { value: 'stock', label: 'Stock Disponible' }
   ];
 
+  // Cargar categorías al montar el componente
   useEffect(() => {
-    if (!state.categoriesLoaded || state.categories.length === 0) {
-      loadCategories();
-    }
-  }, [state.categoriesLoaded, state.categories.length]);
+    loadCategories();
+  }, []);
 
-  const loadCategories = async () => {
-    try {
-      const response = await productsAPI.getCategories();
-      actions.setCategories(response.data || response);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      toast.error('Error al cargar categorías');
-    }
-  };
-
+  // Cargar productos cuando cambian los parámetros de búsqueda
   useEffect(() => {
     loadProducts();
   }, [searchParams]);
 
+  // Actualizar URL cuando cambian los filtros
   useEffect(() => {
     const params = new URLSearchParams();
     
@@ -78,6 +75,17 @@ const Products = () => {
     
     setSearchParams(params);
   }, [searchTerm, selectedCategory, sortBy, pagination.page]);
+
+  const loadCategories = async () => {
+    try {
+      const response = await categoriesAPI.getCategories();
+      console.log('Categorías cargadas:', response);
+      actions.setCategories(response);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      toast.error('Error al cargar categorías');
+    }
+  };
 
   const loadProducts = async () => {
     try {
@@ -92,11 +100,22 @@ const Products = () => {
       };
 
       const response = await productsAPI.getProducts(params);
-      setProducts(response.data.products);
-      setPagination(response.data.pagination);
+      console.log('Respuesta completa:', response);
+      
+      // La respuesta tiene la estructura { products: [...], pagination: {...} }
+      setProducts(response.products || []);
+      setPagination(response.pagination || {
+        page: 1,
+        per_page: 12,
+        total: 0,
+        pages: 0,
+        has_next: false,
+        has_prev: false
+      });
       
     } catch (error) {
-      toast.error(handleAPIError(error));
+      console.error('Error loading products:', error);
+      toast.error('Error al cargar los productos');
     } finally {
       setLoading(false);
     }
@@ -110,7 +129,7 @@ const Products = () => {
     } else {
       params.delete('search');
     }
-    params.delete('page');
+    params.delete('page'); // Reset a página 1
     setSearchParams(params);
   };
 
@@ -121,6 +140,45 @@ const Products = () => {
     setPriceRange([0, 1000]);
     setSearchParams(new URLSearchParams());
     setFiltersApplied(false);
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.pages) {
+      const params = new URLSearchParams(searchParams);
+      if (newPage > 1) {
+        params.set('page', newPage.toString());
+      } else {
+        params.delete('page');
+      }
+      setSearchParams(params);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleAddToCart = async (product) => {
+    if (!getters.isAuthenticated) {
+      toast.info('Inicia sesión para agregar productos al carrito');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      await productsAPI.addToCart({ 
+        product_id: product.id, 
+        quantity: 1 
+      });
+      
+      actions.addToCart({
+        id: Date.now(),
+        product_id: product.id,
+        product: product,
+        quantity: 1
+      });
+      
+      toast.success(`${product.name} agregado al carrito`);
+    } catch (error) {
+      toast.error('Error al agregar al carrito');
+    }
   };
 
   const filteredProducts = useMemo(() => {
@@ -135,55 +193,49 @@ const Products = () => {
     return filtered;
   }, [products, priceRange, filtersApplied]);
 
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.pages) {
-      const params = new URLSearchParams(searchParams);
-      if (newPage > 1) {
-        params.set('page', newPage.toString());
-      } else {
-        params.delete('page');
-      }
-      setSearchParams(params);
-      
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(price);
   };
 
   return (
-    <div className="min-h-screen bg-secondary-50">
-      <div className="bg-white shadow-sm border-b border-secondary-200">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header con búsqueda */}
+      <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-secondary-900">
+              <h1 className="text-3xl font-bold text-gray-900">
                 {selectedCategory 
-                  ? `${state.categories.find(cat => cat.value === selectedCategory)?.label || 'Productos'}`
+                  ? state.categories.find(cat => cat.value === selectedCategory)?.label || 'Productos'
                   : 'Todos los Productos'
                 }
               </h1>
-              <p className="text-secondary-600 mt-1">
+              <p className="text-gray-600 mt-1">
                 {pagination.total > 0 
                   ? `${pagination.total} productos encontrados`
-                  : 'Cargando productos...'
+                  : loading ? 'Cargando productos...' : 'No hay productos disponibles'
                 }
               </p>
             </div>
             
             <div className="lg:max-w-md w-full">
               <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary-400 w-5 h-5" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
                   placeholder="Buscar productos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-secondary-400 hover:text-secondary-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -196,11 +248,12 @@ const Products = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="lg:grid lg:grid-cols-4 lg:gap-8">
+          {/* Sidebar de filtros */}
           <div className="lg:col-span-1">
             <div className="lg:hidden mb-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="w-full flex items-center justify-center px-4 py-2 border border-secondary-300 rounded-lg bg-white hover:bg-secondary-50 transition-colors"
+                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50"
               >
                 <SlidersHorizontal className="w-4 h-4 mr-2" />
                 Filtros
@@ -208,21 +261,22 @@ const Products = () => {
               </button>
             </div>
 
-            <div className={`bg-white rounded-lg shadow-sm border border-secondary-200 p-6 space-y-6 ${showFilters || 'hidden lg:block'}`}>
+            <div className={`bg-white rounded-lg shadow-sm border p-6 space-y-6 ${showFilters || 'hidden lg:block'}`}>
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-secondary-900">Filtros</h3>
+                <h3 className="text-lg font-semibold">Filtros</h3>
                 {(searchTerm || selectedCategory || sortBy !== 'name') && (
                   <button
                     onClick={clearFilters}
-                    className="text-sm text-primary-600 hover:text-primary-700 transition-colors"
+                    className="text-sm text-primary-600 hover:text-primary-700"
                   >
                     Limpiar
                   </button>
                 )}
               </div>
 
+              {/* Categorías */}
               <div>
-                <h4 className="font-medium text-secondary-900 mb-3">Categorías</h4>
+                <h4 className="font-medium mb-3">Categorías</h4>
                 <div className="space-y-2">
                   <label className="flex items-center">
                     <input
@@ -233,7 +287,7 @@ const Products = () => {
                       onChange={(e) => setSelectedCategory(e.target.value)}
                       className="h-4 w-4 text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="ml-2 text-sm text-secondary-700">Todas</span>
+                    <span className="ml-2 text-sm text-gray-700">Todas</span>
                   </label>
                   {state.categories.map((category) => (
                     <label key={category.value} className="flex items-center">
@@ -245,14 +299,15 @@ const Products = () => {
                         onChange={(e) => setSelectedCategory(e.target.value)}
                         className="h-4 w-4 text-primary-600 focus:ring-primary-500"
                       />
-                      <span className="ml-2 text-sm text-secondary-700">{category.label}</span>
+                      <span className="ml-2 text-sm text-gray-700">{category.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
+              {/* Rango de precio */}
               <div>
-                <h4 className="font-medium text-secondary-900 mb-3">Rango de Precio</h4>
+                <h4 className="font-medium mb-3">Rango de Precio</h4>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <input
@@ -260,15 +315,15 @@ const Products = () => {
                       placeholder="Mín"
                       value={priceRange[0]}
                       onChange={(e) => setPriceRange([parseInt(e.target.value) || 0, priceRange[1]])}
-                      className="w-full px-3 py-2 border border-secondary-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
-                    <span className="text-secondary-500">-</span>
+                    <span className="text-gray-500">-</span>
                     <input
                       type="number"
                       placeholder="Máx"
                       value={priceRange[1]}
                       onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value) || 1000])}
-                      className="w-full px-3 py-2 border border-secondary-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <button
@@ -279,85 +334,62 @@ const Products = () => {
                   </button>
                 </div>
               </div>
-
-              <div>
-                <h4 className="font-medium text-secondary-900 mb-3">Disponibilidad</h4>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 rounded"
-                    />
-                    <span className="ml-2 text-sm text-secondary-700">En stock</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 rounded"
-                    />
-                    <span className="ml-2 text-sm text-secondary-700">Envío gratis</span>
-                  </label>
-                </div>
-              </div>
             </div>
           </div>
 
+          {/* Lista de productos */}
           <div className="lg:col-span-3">
+            {/* Controles superiores */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="appearance-none bg-white border border-secondary-300 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    {sortOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ArrowUpDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
-                </div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`p-2 rounded-lg ${
                     viewMode === 'grid' 
                       ? 'bg-primary-600 text-white' 
-                      : 'bg-white text-secondary-600 hover:bg-secondary-50 border border-secondary-300'
+                      : 'bg-white text-gray-600 hover:bg-gray-50 border'
                   }`}
                 >
                   <Grid className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`p-2 rounded-lg ${
                     viewMode === 'list' 
                       ? 'bg-primary-600 text-white' 
-                      : 'bg-white text-secondary-600 hover:bg-secondary-50 border border-secondary-300'
+                      : 'bg-white text-gray-600 hover:bg-gray-50 border'
                   }`}
                 >
                   <List className="w-4 h-4" />
                 </button>
               </div>
-            </div>
-
-            {loading ? (
+            </div>{loading ? (
               <div className={`grid gap-6 ${
                 viewMode === 'grid' 
                   ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
                   : 'grid-cols-1'
               }`}>
                 {[...Array(12)].map((_, index) => (
-                  <div key={index} className="bg-white rounded-xl shadow-sm border border-secondary-100 overflow-hidden animate-pulse">
-                    <div className="bg-secondary-200 h-48"></div>
+                  <div key={index} className="bg-white rounded-xl shadow-sm border overflow-hidden animate-pulse">
+                    <div className="bg-gray-200 h-48"></div>
                     <div className="p-4">
-                      <div className="h-4 bg-secondary-200 rounded mb-2"></div>
-                      <div className="h-4 bg-secondary-200 rounded w-2/3 mb-4"></div>
-                      <div className="h-6 bg-secondary-200 rounded w-1/3"></div>
+                      <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+                      <div className="h-6 bg-gray-200 rounded w-1/3"></div>
                     </div>
                   </div>
                 ))}
@@ -370,12 +402,100 @@ const Products = () => {
                     : 'grid-cols-1'
                 }`}>
                   {filteredProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      variant={viewMode === 'list' ? 'detailed' : 'default'}
-                      className={viewMode === 'list' ? 'flex flex-row' : ''}
-                    />
+                    <div key={product.id} className={`bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow duration-200 overflow-hidden ${
+                      viewMode === 'list' ? 'flex flex-row' : ''
+                    }`}>
+                      <div className={`relative ${viewMode === 'list' ? 'w-48 flex-shrink-0' : ''}`}>
+                        <ProductImage
+                          src={product.image}
+                          alt={product.name}
+                          className={viewMode === 'list' ? 'h-full object-cover' : 'w-full h-48 object-cover'}
+                        />
+                        {product.stock === 0 && (
+                          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                            <span className="text-white font-medium">Agotado</span>
+                          </div>
+                        )}
+                        <div className="absolute top-2 right-2 flex flex-col space-y-2">
+                          <button className="p-1.5 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full shadow-sm transition-all">
+                            <Heart className="w-4 h-4 text-gray-600 hover:text-red-500" />
+                          </button>
+                          <button 
+                            onClick={() => navigate(`/products/${product.id}`)}
+                            className="p-1.5 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full shadow-sm transition-all"
+                          >
+                            <Eye className="w-4 h-4 text-gray-600 hover:text-primary-600" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className={`p-4 ${viewMode === 'list' ? 'flex-1 flex flex-col justify-between' : ''}`}>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
+                          
+                          {product.rating && (
+                            <div className="flex items-center mb-2">
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star 
+                                    key={i} 
+                                    className={`w-4 h-4 ${
+                                      i < Math.floor(product.rating) 
+                                        ? 'text-yellow-400 fill-current' 
+                                        : 'text-gray-300'
+                                    }`} 
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-sm text-gray-600 ml-1">({product.reviews_count || 0})</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className={`${viewMode === 'list' ? 'flex items-center justify-between' : 'space-y-3'}`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg font-bold text-primary-600">
+                              {formatPrice(product.price)}
+                            </span>
+                            {product.original_price && product.original_price > product.price && (
+                              <span className="text-sm text-gray-500 line-through ml-2">
+                                {formatPrice(product.original_price)}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className={`flex items-center space-x-2 ${viewMode === 'list' ? '' : 'w-full'}`}>
+                            {product.stock > 0 ? (
+                              <button
+                                onClick={() => handleAddToCart(product)}
+                                className={`flex items-center justify-center space-x-2 bg-primary-600 text-white hover:bg-primary-700 px-4 py-2 rounded-lg transition-colors ${
+                                  viewMode === 'list' ? '' : 'w-full'
+                                }`}
+                              >
+                                <ShoppingCart className="w-4 h-4" />
+                                <span>Agregar</span>
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                className={`flex items-center justify-center space-x-2 bg-gray-300 text-gray-500 px-4 py-2 rounded-lg cursor-not-allowed ${
+                                  viewMode === 'list' ? '' : 'w-full'
+                                }`}
+                              >
+                                <span>Agotado</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {product.stock > 0 && product.stock <= 5 && (
+                          <p className="text-sm text-orange-600 mt-2">
+                            ¡Solo quedan {product.stock} disponibles!
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
 
@@ -386,8 +506,8 @@ const Products = () => {
                       disabled={!pagination.has_prev}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         pagination.has_prev
-                          ? 'bg-white text-secondary-700 hover:bg-secondary-50 border border-secondary-300'
-                          : 'bg-secondary-100 text-secondary-400 cursor-not-allowed'
+                          ? 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       }`}
                     >
                       Anterior
@@ -409,7 +529,7 @@ const Products = () => {
                             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                               isCurrentPage
                                 ? 'bg-primary-600 text-white'
-                                : 'bg-white text-secondary-700 hover:bg-secondary-50 border border-secondary-300'
+                                : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                             }`}
                           >
                             {pageNum}
@@ -420,7 +540,7 @@ const Products = () => {
                         pageNum === pagination.page + 3
                       ) {
                         return (
-                          <span key={pageNum} className="px-2 py-2 text-secondary-400">
+                          <span key={pageNum} className="px-2 py-2 text-gray-400">
                             ...
                           </span>
                         );
@@ -433,8 +553,8 @@ const Products = () => {
                       disabled={!pagination.has_next}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         pagination.has_next
-                          ? 'bg-white text-secondary-700 hover:bg-secondary-50 border border-secondary-300'
-                          : 'bg-secondary-100 text-secondary-400 cursor-not-allowed'
+                          ? 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       }`}
                     >
                       Siguiente
@@ -442,20 +562,20 @@ const Products = () => {
                   </div>
                 )}
 
-                <div className="mt-8 text-center text-sm text-secondary-600">
+                <div className="mt-8 text-center text-sm text-gray-600">
                   Mostrando {((pagination.page - 1) * pagination.per_page) + 1} - {Math.min(pagination.page * pagination.per_page, pagination.total)} de {pagination.total} productos
                 </div>
               </>
             ) : (
               <div className="text-center py-12">
                 <div className="max-w-md mx-auto">
-                  <div className="w-24 h-24 mx-auto mb-6 bg-secondary-100 rounded-full flex items-center justify-center">
-                    <Search className="w-8 h-8 text-secondary-400" />
+                  <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                    <Search className="w-8 h-8 text-gray-400" />
                   </div>
-                  <h3 className="text-xl font-semibold text-secondary-900 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     No se encontraron productos
                   </h3>
-                  <p className="text-secondary-600 mb-6">
+                  <p className="text-gray-600 mb-6">
                     No hay productos que coincidan con tus criterios de búsqueda.
                     Intenta cambiar los filtros o términos de búsqueda.
                   </p>
