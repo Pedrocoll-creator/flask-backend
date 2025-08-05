@@ -16,11 +16,10 @@ import {
 import { toast } from 'react-toastify';
 
 const Products = () => {
-  const { state } = useStore();
+  const { state, actions } = useStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Estados locales
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -32,16 +31,14 @@ const Products = () => {
     has_prev: false
   });
   
-  // Estados de filtros y UI
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'name');
   const [priceRange, setPriceRange] = useState([0, 1000]);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // grid or list
+  const [viewMode, setViewMode] = useState('grid');
   const [filtersApplied, setFiltersApplied] = useState(false);
 
-  // Opciones de ordenamiento
   const sortOptions = [
     { value: 'name', label: 'Nombre A-Z' },
     { value: 'name_desc', label: 'Nombre Z-A' },
@@ -51,13 +48,27 @@ const Products = () => {
     { value: 'stock', label: 'Stock Disponible' }
   ];
 
-  // Efectos
+  useEffect(() => {
+    if (!state.categoriesLoaded || state.categories.length === 0) {
+      loadCategories();
+    }
+  }, [state.categoriesLoaded, state.categories.length]);
+
+  const loadCategories = async () => {
+    try {
+      const response = await productsAPI.getCategories();
+      actions.setCategories(response.data || response);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      toast.error('Error al cargar categorías');
+    }
+  };
+
   useEffect(() => {
     loadProducts();
   }, [searchParams]);
 
   useEffect(() => {
-    // Actualizar URL cuando cambien los filtros
     const params = new URLSearchParams();
     
     if (searchTerm) params.set('search', searchTerm);
@@ -68,7 +79,6 @@ const Products = () => {
     setSearchParams(params);
   }, [searchTerm, selectedCategory, sortBy, pagination.page]);
 
-  // Función para cargar productos
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -92,7 +102,6 @@ const Products = () => {
     }
   };
 
-  // Manejar búsqueda
   const handleSearch = (e) => {
     e.preventDefault();
     const params = new URLSearchParams(searchParams);
@@ -101,11 +110,10 @@ const Products = () => {
     } else {
       params.delete('search');
     }
-    params.delete('page'); // Reset page when searching
+    params.delete('page');
     setSearchParams(params);
   };
 
-  // Limpiar filtros
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCategory('');
@@ -115,11 +123,9 @@ const Products = () => {
     setFiltersApplied(false);
   };
 
-  // Aplicar filtros de precio (ejemplo de filtro local)
   const filteredProducts = useMemo(() => {
     let filtered = [...products];
     
-    // Filtro de precio local (opcional)
     if (filtersApplied) {
       filtered = filtered.filter(product => 
         product.price >= priceRange[0] && product.price <= priceRange[1]
@@ -129,7 +135,6 @@ const Products = () => {
     return filtered;
   }, [products, priceRange, filtersApplied]);
 
-  // Manejar paginación
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
       const params = new URLSearchParams(searchParams);
@@ -140,14 +145,12 @@ const Products = () => {
       }
       setSearchParams(params);
       
-      // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   return (
     <div className="min-h-screen bg-secondary-50">
-      {/* Header */}
       <div className="bg-white shadow-sm border-b border-secondary-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -166,7 +169,6 @@ const Products = () => {
               </p>
             </div>
             
-            {/* Search Bar */}
             <div className="lg:max-w-md w-full">
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary-400 w-5 h-5" />
@@ -194,9 +196,7 @@ const Products = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="lg:grid lg:grid-cols-4 lg:gap-8">
-          {/* Sidebar Filters */}
           <div className="lg:col-span-1">
-            {/* Mobile filter toggle */}
             <div className="lg:hidden mb-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -208,7 +208,6 @@ const Products = () => {
               </button>
             </div>
 
-            {/* Filters */}
             <div className={`bg-white rounded-lg shadow-sm border border-secondary-200 p-6 space-y-6 ${showFilters || 'hidden lg:block'}`}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-secondary-900">Filtros</h3>
@@ -222,7 +221,6 @@ const Products = () => {
                 )}
               </div>
 
-              {/* Categories */}
               <div>
                 <h4 className="font-medium text-secondary-900 mb-3">Categorías</h4>
                 <div className="space-y-2">
@@ -253,7 +251,6 @@ const Products = () => {
                 </div>
               </div>
 
-              
               <div>
                 <h4 className="font-medium text-secondary-900 mb-3">Rango de Precio</h4>
                 <div className="space-y-3">
@@ -283,7 +280,6 @@ const Products = () => {
                 </div>
               </div>
 
-              {/* Stock Status */}
               <div>
                 <h4 className="font-medium text-secondary-900 mb-3">Disponibilidad</h4>
                 <div className="space-y-2">
@@ -306,12 +302,9 @@ const Products = () => {
             </div>
           </div>
 
-          
           <div className="lg:col-span-3">
-            
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div className="flex items-center space-x-4">
-                
                 <div className="relative">
                   <select
                     value={sortBy}
@@ -328,7 +321,6 @@ const Products = () => {
                 </div>
               </div>
 
-              {/* View Mode */}
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setViewMode('grid')}
@@ -353,7 +345,6 @@ const Products = () => {
               </div>
             </div>
 
-            {/* Products */}
             {loading ? (
               <div className={`grid gap-6 ${
                 viewMode === 'grid' 
@@ -388,7 +379,6 @@ const Products = () => {
                   ))}
                 </div>
 
-                {/* Pagination */}
                 {pagination.pages > 1 && (
                   <div className="mt-12 flex items-center justify-center space-x-2">
                     <button
@@ -403,12 +393,10 @@ const Products = () => {
                       Anterior
                     </button>
                     
-                    {/* Page numbers */}
                     {[...Array(pagination.pages)].map((_, index) => {
                       const pageNum = index + 1;
                       const isCurrentPage = pageNum === pagination.page;
                       
-                      // Show only relevant page numbers
                       if (
                         pageNum === 1 ||
                         pageNum === pagination.pages ||
@@ -454,13 +442,11 @@ const Products = () => {
                   </div>
                 )}
 
-                
                 <div className="mt-8 text-center text-sm text-secondary-600">
                   Mostrando {((pagination.page - 1) * pagination.per_page) + 1} - {Math.min(pagination.page * pagination.per_page, pagination.total)} de {pagination.total} productos
                 </div>
               </>
             ) : (
-              
               <div className="text-center py-12">
                 <div className="max-w-md mx-auto">
                   <div className="w-24 h-24 mx-auto mb-6 bg-secondary-100 rounded-full flex items-center justify-center">
@@ -494,7 +480,6 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Back to top button */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         className="fixed bottom-6 right-6 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 transition-all duration-300 hover:scale-110 z-40"

@@ -8,16 +8,9 @@ const initialState = {
   orders: [],
   loading: false,
   error: null,
-  categories: [
-    { value: 'electronics', label: 'Electrónicos' },
-    { value: 'clothing', label: 'Ropa' },
-    { value: 'home', label: 'Hogar' },
-    { value: 'books', label: 'Libros' },
-    { value: 'sports', label: 'Deportes' },
-    { value: 'beauty', label: 'Belleza' },
-    { value: 'toys', label: 'Juguetes' },
-    { value: 'other', label: 'Otros' }
-  ]
+
+  categories: [],
+  categoriesLoaded: false
 };
 
 export const ACTIONS = {
@@ -37,7 +30,9 @@ export const ACTIONS = {
   REMOVE_FROM_CART: 'REMOVE_FROM_CART',
   CLEAR_CART: 'CLEAR_CART',
   SET_ORDERS: 'SET_ORDERS',
-  ADD_ORDER: 'ADD_ORDER'
+  ADD_ORDER: 'ADD_ORDER',
+  
+  SET_CATEGORIES: 'SET_CATEGORIES'
 };
 
 const storeReducer = (state, action) => {
@@ -117,6 +112,13 @@ const storeReducer = (state, action) => {
       return { ...state, orders: action.payload };
     case ACTIONS.ADD_ORDER:
       return { ...state, orders: [action.payload, ...state.orders] };
+    // ✅ NUEVO: Caso para categorías
+    case ACTIONS.SET_CATEGORIES:
+      return { 
+        ...state, 
+        categories: action.payload, 
+        categoriesLoaded: true 
+      };
     default:
       return state;
   }
@@ -192,6 +194,10 @@ export const StoreProvider = ({ children }) => {
     },
     addOrder: (order) => {
       dispatch({ type: ACTIONS.ADD_ORDER, payload: order });
+    },
+   
+    setCategories: (categories) => {
+      dispatch({ type: ACTIONS.SET_CATEGORIES, payload: categories });
     }
   };
 

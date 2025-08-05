@@ -8,7 +8,8 @@ import {
   ShoppingCart, 
   Eye,
   Plus,
-  Minus
+  Minus,
+  ImageIcon
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -17,7 +18,7 @@ const ProductCard = ({
   showQuickView = true, 
   showWishlist = true,
   className = "",
-  variant = "default" // default, compact, detailed
+  variant = "default"
 }) => {
   const { state, actions, getters } = useStore();
   const navigate = useNavigate();
@@ -25,6 +26,38 @@ const ProductCard = ({
   const [isLoading, setIsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
+
+  const fallbackImages = [
+    'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto',
+    'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop',
+    'https://picsum.photos/400/300?random=' + product.id,
+    '/placeholder-product.jpg'
+  ];
+
+  const [currentFallbackIndex, setCurrentFallbackIndex] = useState(0);
+
+  const getImageSrc = () => {
+    if (!product.image_url || imageError) {
+      return fallbackImages[currentFallbackIndex] || fallbackImages[0];
+    }
+    return product.image_url;
+  };
+
+  const handleImageError = () => {
+    console.log(`Error loading image for product ${product.id}: ${getImageSrc()}`);
+    
+    if (currentFallbackIndex < fallbackImages.length - 1) {
+      setCurrentFallbackIndex(currentFallbackIndex + 1);
+    } else {
+      setImageError(true);
+    }
+    setImageLoading(false);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
+  };
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
@@ -36,7 +69,7 @@ const ProductCard = ({
       return;
     }
 
-    if (product.stock === 0) {
+    if (product.stock_quantity === 0) {
       toast.error('Producto sin stock');
       return;
     }
@@ -88,31 +121,46 @@ const ProductCard = ({
   };
 
   const getStockStatus = () => {
-    if (product.stock === 0) {
+    const stock = product.stock_quantity || product.stock || 0;
+    if (stock === 0) {
       return { text: 'Sin stock', color: 'bg-red-500', textColor: 'text-red-600' };
-    } else if (product.stock <= 5) {
+    } else if (stock <= 5) {
       return { text: '¡Últimas unidades!', color: 'bg-yellow-500', textColor: 'text-yellow-600' };
-    } else if (product.stock <= 10) {
+    } else if (stock <= 10) {
       return { text: 'Stock limitado', color: 'bg-orange-500', textColor: 'text-orange-600' };
     }
     return { text: 'En stock', color: 'bg-green-500', textColor: 'text-green-600' };
   };
 
   const stockStatus = getStockStatus();
+  const stock = product.stock_quantity || product.stock || 0;
 
-  // Diferentes variantes del componente
   if (variant === "compact") {
     return (
       <Link to={`/product/${product.id}`} className={`block group ${className}`}>
         <div className="bg-white rounded-lg shadow-sm border border-secondary-100 overflow-hidden hover:shadow-md transition-all duration-300">
           <div className="relative">
-            <img
-              src={imageError ? 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=200&fit=crop' : product.image_url}
-              alt={product.name}
-              onError={() => setImageError(true)}
-              className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            {product.stock <= 5 && (
+            <div className="relative w-full h-32 bg-secondary-100 overflow-hidden">
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-secondary-100">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                </div>
+              )}
+              <img
+                src={getImageSrc()}
+                alt={product.name}
+                onError={handleImageError}
+                onLoad={handleImageLoad}
+                className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                loading="lazy"
+              />
+              {imageError && currentFallbackIndex >= fallbackImages.length - 1 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-secondary-100">
+                  <ImageIcon className="w-8 h-8 text-secondary-400" />
+                </div>
+              )}
+            </div>
+            {stock <= 5 && stock > 0 && (
               <div className="absolute top-2 left-2">
                 <span className={`${stockStatus.color} text-white px-2 py-1 rounded-full text-xs font-medium`}>
                   {stockStatus.text}
@@ -130,9 +178,9 @@ const ProductCard = ({
               </span>
               <button
                 onClick={handleAddToCart}
-                disabled={product.stock === 0 || isLoading}
+                disabled={stock === 0 || isLoading}
                 className={`p-1 rounded transition-all ${
-                  product.stock === 0
+                  stock === 0
                     ? 'bg-secondary-200 text-secondary-400 cursor-not-allowed'
                     : 'bg-primary-600 text-white hover:bg-primary-700'
                 }`}
@@ -146,21 +194,33 @@ const ProductCard = ({
     );
   }
 
-  // Variante por defecto (completa)
   return (
     <div className={`bg-white rounded-xl shadow-sm border border-secondary-100 overflow-hidden group hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${className}`}>
-      {/* Image Container */}
       <div className="relative overflow-hidden">
         <Link to={`/product/${product.id}`}>
-          <img
-            src={imageError ? 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop' : product.image_url}
-            alt={product.name}
-            onError={() => setImageError(true)}
-            className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
-          />
+          <div className="relative w-full h-48 bg-secondary-100 overflow-hidden">
+            {imageLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-secondary-100 z-10">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+            )}
+            <img
+              src={getImageSrc()}
+              alt={product.name}
+              onError={handleImageError}
+              onLoad={handleImageLoad}
+              className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+              loading="lazy"
+            />
+            {imageError && currentFallbackIndex >= fallbackImages.length - 1 && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary-100">
+                <ImageIcon className="w-12 h-12 text-secondary-400 mb-2" />
+                <span className="text-xs text-secondary-500">Imagen no disponible</span>
+              </div>
+            )}
+          </div>
         </Link>
         
-        {/* Overlay with actions */}
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
           <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0">
             {showQuickView && (
@@ -186,8 +246,7 @@ const ProductCard = ({
           </div>
         </div>
 
-        {/* Stock badge */}
-        {product.stock <= 10 && (
+        {stock <= 10 && stock > 0 && (
           <div className="absolute top-2 left-2">
             <span className={`${stockStatus.color} text-white px-2 py-1 rounded-full text-xs font-medium`}>
               {stockStatus.text}
@@ -195,7 +254,6 @@ const ProductCard = ({
           </div>
         )}
 
-        {/* Discount badge (ejemplo) */}
         {product.discount && (
           <div className="absolute top-2 right-2">
             <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
@@ -205,9 +263,7 @@ const ProductCard = ({
         )}
       </div>
       
-      {/* Content */}
       <div className="p-4">
-        {/* Rating */}
         <div className="flex items-center mb-2">
           <div className="flex items-center text-yellow-400 mr-2">
             {[...Array(5)].map((_, i) => (
@@ -222,26 +278,22 @@ const ProductCard = ({
           </span>
         </div>
         
-        {/* Title */}
         <h3 className="font-semibold text-secondary-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">
           <Link to={`/product/${product.id}`}>
             {product.name}
           </Link>
         </h3>
         
-        {/* Description */}
         <p className="text-sm text-secondary-600 mb-3 line-clamp-2">
           {product.description || 'Producto de alta calidad con las mejores características del mercado.'}
         </p>
         
-        {/* Category */}
         <div className="mb-3">
           <span className="inline-block bg-secondary-100 text-secondary-700 px-2 py-1 rounded-full text-xs font-medium">
-            {product.category?.charAt(0).toUpperCase() + product.category?.slice(1) || 'General'}
+            {product.category?.name || product.category || 'General'}
           </span>
         </div>
         
-        {/* Price and Actions */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -257,12 +309,11 @@ const ProductCard = ({
             
             <div className="flex items-center text-sm text-secondary-500">
               <span className={stockStatus.textColor}>
-                Stock: {product.stock}
+                Stock: {stock}
               </span>
             </div>
           </div>
 
-          {/* Quantity selector for detailed variant */}
           {variant === "detailed" && (
             <div className="flex items-center justify-between">
               <div className="flex items-center border border-secondary-300 rounded-lg">
@@ -280,10 +331,10 @@ const ProductCard = ({
                 <button
                   onClick={(e) => {
                     e.preventDefault();
-                    if (quantity < product.stock) setQuantity(quantity + 1);
+                    if (quantity < stock) setQuantity(quantity + 1);
                   }}
                   className="p-2 hover:bg-secondary-50 transition-colors"
-                  disabled={quantity >= product.stock}
+                  disabled={quantity >= stock}
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -291,22 +342,21 @@ const ProductCard = ({
             </div>
           )}
           
-          {/* Add to cart button */}
           <button
             onClick={handleAddToCart}
-            disabled={product.stock === 0 || isLoading}
+            disabled={stock === 0 || isLoading}
             className={`w-full py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center ${
-              product.stock === 0
+              stock === 0
                 ? 'bg-secondary-200 text-secondary-400 cursor-not-allowed'
                 : 'bg-primary-600 text-white hover:bg-primary-700 hover:shadow-md transform hover:scale-105'
             }`}
           >
             {isLoading ? (
-              <div className="loading-spinner mr-2"></div>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
             ) : (
               <ShoppingCart className="w-4 h-4 mr-2" />
             )}
-            {product.stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
+            {stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
           </button>
         </div>
       </div>

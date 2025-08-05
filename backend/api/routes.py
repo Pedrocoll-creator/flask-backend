@@ -149,34 +149,66 @@ def delete_profile():
     except Exception as e:
         raise APIException(f"Error al desactivar cuenta: {str(e)}", status_code=500)
 
+# ✅ CORREGIDO: Endpoint de productos con mejor manejo de categorías
 @api.route('/products', methods=['GET'])
 def get_products():
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 12, type=int)
-        category_id = request.args.get('category')
+        category_param = request.args.get('category')  # Puede ser ID o slug
         search = request.args.get('search')
         featured = request.args.get('featured')
         
+        print(f"🔍 Parámetros recibidos: page={page}, category={category_param}, search={search}")
+        
         query = Product.query.filter_by(is_active=True)
         
-        if category_id:
-            query = query.filter_by(category_id=category_id)
+        if category_param:
+            # ✅ NUEVA LÓGICA: Buscar por ID o slug
+            try:
+                # Intentar como UUID primero
+                uuid.UUID(category_param)
+                query = query.filter_by(category_id=category_param)
+                print(f"✅ Filtrando por category_id (UUID): {category_param}")
+            except ValueError:
+                # Si no es UUID, buscar por slug
+                category = Category.query.filter_by(slug=category_param, is_active=True).first()
+                if category:
+                    query = query.filter_by(category_id=category.id)
+                    print(f"✅ Filtrando por slug '{category_param}', encontrado ID: {category.id}")
+                else:
+                    print(f"❌ Categoría no encontrada: {category_param}")
+                    # Si no encuentra la categoría, devolver lista vacía pero sin error
+                    return jsonify({
+                        "products": [],
+                        "pagination": {
+                            "page": page,
+                            "per_page": per_page,
+                            "total": 0,
+                            "pages": 0,
+                            "has_next": False,
+                            "has_prev": False
+                        }
+                    }), 200
         
         if search:
             query = query.filter(or_(
                 Product.name.ilike(f'%{search}%'),
                 Product.description.ilike(f'%{search}%')
             ))
+            print(f"🔍 Aplicando búsqueda: {search}")
         
         if featured:
             query = query.filter_by(is_featured=True)
+            print("⭐ Filtrando productos destacados")
         
         products = query.order_by(Product.created_at.desc()).paginate(
             page=page, 
             per_page=per_page, 
             error_out=False
         )
+        
+        print(f"📊 Productos encontrados: {products.total}")
         
         return jsonify({
             "products": [product.serialize() for product in products.items],
@@ -191,6 +223,7 @@ def get_products():
         }), 200
         
     except Exception as e:
+        print(f"❌ Error en get_products: {str(e)}")
         raise APIException(f"Error al obtener productos: {str(e)}", status_code=500)
 
 @api.route('/products/<product_id>', methods=['GET'])
@@ -208,22 +241,29 @@ def get_product(product_id):
     except Exception as e:
         raise APIException(f"Error al obtener producto: {str(e)}", status_code=500)
 
+# ✅ CORREGIDO: Endpoint de categorías mejorado
 @api.route('/categories', methods=['GET'])
 def get_categories():
     try:
+        print("📂 Cargando categorías...")
         categories = Category.query.filter_by(is_active=True).order_by(Category.sort_order, Category.name).all()
         
         category_list = []
         for cat in categories:
-            slug = getattr(cat, 'slug', None) or cat.name.lower().replace(' ', '').replace('ñ', 'n')
-            category_list.append({
-                "value": slug,
+            category_data = {
+                "value": str(cat.id),        # ✅ USAR ID como value (no slug)
                 "label": cat.name,
+                "slug": cat.slug,            # ✅ Mantener slug como info adicional
                 "id": str(cat.id)
-            })
+            }
+            category_list.append(category_data)
+            print(f"✅ Categoría: {cat.name} -> ID: {cat.id}, Slug: {cat.slug}")
         
+        print(f"📊 Total categorías encontradas: {len(category_list)}")
         return jsonify(category_list), 200
+        
     except Exception as e:
+        print(f"❌ Error en get_categories: {str(e)}")
         raise APIException(f"Error al obtener categorías: {str(e)}", status_code=500)
 
 @api.route('/cart', methods=['GET'])
