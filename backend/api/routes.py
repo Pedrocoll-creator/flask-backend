@@ -212,7 +212,17 @@ def get_product(product_id):
 def get_categories():
     try:
         categories = Category.query.filter_by(is_active=True).order_by(Category.sort_order, Category.name).all()
-        return jsonify([{"value": cat.slug, "label": cat.name} for cat in categories]), 200
+        
+        category_list = []
+        for cat in categories:
+            slug = getattr(cat, 'slug', None) or cat.name.lower().replace(' ', '').replace('ñ', 'n')
+            category_list.append({
+                "value": slug,
+                "label": cat.name,
+                "id": str(cat.id)
+            })
+        
+        return jsonify(category_list), 200
     except Exception as e:
         raise APIException(f"Error al obtener categorías: {str(e)}", status_code=500)
 
@@ -503,7 +513,20 @@ def create_product():
             if field not in body:
                 raise APIException(f"El campo {field} es requerido", status_code=400)
         
-        category = Category.query.filter_by(id=body['category_id']).first()
+        category_id = body['category_id']
+        
+        category = None
+        try:
+            uuid.UUID(category_id)
+            category = Category.query.filter_by(id=category_id).first()
+        except ValueError:
+            category = Category.query.filter(
+                or_(
+                    Category.slug == category_id,
+                    Category.name.ilike(category_id.replace('', ' ').title())
+                )
+            ).first()
+        
         if not category:
             raise APIException("Categoría inválida", status_code=400)
         
@@ -516,7 +539,7 @@ def create_product():
             short_description=body.get('short_description'),
             price=body['price'],
             stock_quantity=body['stock_quantity'],
-            category_id=body['category_id'],
+            category_id=category.id,
             vendor_id=get_current_user().id,
             image_url=body.get('image_url'),
             is_featured=body.get('is_featured', False)

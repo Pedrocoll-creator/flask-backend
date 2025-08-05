@@ -42,8 +42,16 @@ const AddProduct = () => {
       console.log('Categories from API:', response.data || response);
       setCategories(response.data || response);
     } catch (error) {
-      console.error('Error loading categories:', error);
-      setCategories(state.categories);
+      console.error('Error loading categories (using fallback):', error);
+      // Fallback con las categorías que sabemos que existen
+      const fallbackCategories = [
+        { value: "anillos", label: "Anillos" },
+        { value: "collares", label: "Collares" },
+        { value: "pendientes", label: "Pendientes" },
+        { value: "pulseras", label: "Pulseras" },
+        { value: "relojes", label: "Relojes" }
+      ];
+      setCategories(fallbackCategories);
     }
   };
 
@@ -245,9 +253,9 @@ const AddProduct = () => {
                   required
                 >
                   <option value="">Selecciona una categoría</option>
-                  {categories.map((category) => (
-                    <option key={category.id || category.value} value={category.id || category.value}>
-                      {category.name || category.label}
+                  {categories.map((category, index) => (
+                    <option key={category.id || category.value || index} value={category.value}>
+                      {category.label}
                     </option>
                   ))}
                 </select>

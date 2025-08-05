@@ -165,7 +165,13 @@ def create_initial_data():
         ]
         for cat_data in categories_data:
             if not Category.query.filter_by(name=cat_data['name']).first():
-                category = Category(name=cat_data['name'], description=cat_data['description'], is_active=True)
+                slug = cat_data['name'].lower().replace(' ', '').replace('ñ', 'n')
+                category = Category(
+                    name=cat_data['name'], 
+                    slug=slug,
+                    description=cat_data['description'], 
+                    is_active=True
+                )
                 db.session.add(category)
         admin = User.query.filter_by(email='admin@onix.com').first()
         if not admin:
