@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store.jsx';
+import { authAPI, handleAPIError } from '../utils/api.js';
 import { 
   User, 
   Mail, 
@@ -57,36 +58,20 @@ const MyProfile = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const token = localStorage.getItem('token');
+      const response = await authAPI.updateProfile(formData);
       
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Actualizar el usuario en el store
-        actions.setUser(data.user);
-        setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' });
-        setIsEditing(false);
-      } else {
-        setMessage({ type: 'error', text: data.message || 'Error al actualizar perfil' });
-      }
+      actions.setUser(response.data.user);
+      setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' });
+      setIsEditing(false);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Error de conexión. Inténtalo de nuevo.' });
+      console.error('Error updating profile:', error);
+      setMessage({ type: 'error', text: handleAPIError(error) });
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    // Restaurar datos originales
     if (state.user) {
       setFormData({
         first_name: state.user.first_name || '',
@@ -105,7 +90,6 @@ const MyProfile = () => {
   return (
     <div className="min-h-screen bg-secondary-50 py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-3">
             <div className="bg-primary-100 p-3 rounded-lg">
@@ -118,7 +102,6 @@ const MyProfile = () => {
           </div>
         </div>
 
-        {/* Mensaje de estado */}
         {message.text && (
           <div className={`mb-6 p-4 rounded-lg flex items-center space-x-3 ${
             message.type === 'success' 
@@ -134,10 +117,8 @@ const MyProfile = () => {
           </div>
         )}
 
-        {/* Card de perfil */}
         <div className="bg-white rounded-xl shadow-sm border border-secondary-200 overflow-hidden">
           
-          {/* Header de la card */}
           <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -167,11 +148,9 @@ const MyProfile = () => {
             </div>
           </div>
 
-          {/* Contenido */}
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               
-              {/* Información personal */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-secondary-900 border-b border-secondary-200 pb-2">
                   Información Personal
@@ -263,7 +242,6 @@ const MyProfile = () => {
                 </div>
               </div>
 
-              {/* Dirección */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-secondary-900 border-b border-secondary-200 pb-2">
                   <MapPin className="w-5 h-5 inline mr-1" />
@@ -333,7 +311,6 @@ const MyProfile = () => {
                 </div>
               </div>
 
-              {/* Botones de acción */}
               {isEditing && (
                 <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-secondary-200">
                   <button

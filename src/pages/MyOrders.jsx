@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '../store.jsx';
+import { ordersAPI, handleAPIError } from '../utils/api.js';
 import { 
   Package, 
   Calendar, 
@@ -29,22 +30,13 @@ const MyOrders = () => {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      setError('');
       
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/orders`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data);
-      } else {
-        setError('Error al cargar los pedidos');
-      }
+      const response = await ordersAPI.getOrders();
+      setOrders(response.data);
     } catch (error) {
-      setError('Error de conexión');
+      console.error('Error loading orders:', error);
+      setError(handleAPIError(error));
     } finally {
       setLoading(false);
     }
@@ -130,7 +122,7 @@ const MyOrders = () => {
     <div className="min-h-screen bg-secondary-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Header */}
+        
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -153,7 +145,7 @@ const MyOrders = () => {
           </div>
         </div>
 
-        {/* Error */}
+       
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3 text-red-800">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -161,7 +153,7 @@ const MyOrders = () => {
           </div>
         )}
 
-        {/* Lista de pedidos */}
+        
         {orders.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-secondary-200 p-12 text-center">
             <Package className="w-16 h-16 text-secondary-300 mx-auto mb-4" />
@@ -179,7 +171,7 @@ const MyOrders = () => {
             {orders.map((order) => (
               <div key={order.id} className="bg-white rounded-xl shadow-sm border border-secondary-200 overflow-hidden">
                 
-                {/* Header del pedido */}
+               
                 <div className="p-6 border-b border-secondary-200">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                     <div className="flex items-center space-x-4">
@@ -214,11 +206,11 @@ const MyOrders = () => {
                   </div>
                 </div>
 
-                {/* Resumen del pedido */}
+              
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
-                    {/* Total */}
+                   
                     <div className="flex items-center space-x-3">
                       <div className="bg-green-100 p-2 rounded-lg">
                         <CreditCard className="w-5 h-5 text-green-600" />
@@ -231,7 +223,7 @@ const MyOrders = () => {
                       </div>
                     </div>
 
-                    {/* Items */}
+                   
                     <div className="flex items-center space-x-3">
                       <div className="bg-blue-100 p-2 rounded-lg">
                         <Package className="w-5 h-5 text-blue-600" />
@@ -244,7 +236,7 @@ const MyOrders = () => {
                       </div>
                     </div>
 
-                    {/* Dirección */}
+                   
                     <div className="flex items-center space-x-3">
                       <div className="bg-purple-100 p-2 rounded-lg">
                         <MapPin className="w-5 h-5 text-purple-600" />
@@ -265,7 +257,7 @@ const MyOrders = () => {
                   </div>
                 </div>
 
-                {/* Detalles expandibles */}
+               
                 {selectedOrder === order.id && (
                   <div className="border-t border-secondary-200 p-6 bg-secondary-50">
                     <h4 className="text-lg font-semibold text-secondary-900 mb-4">Productos del pedido</h4>
@@ -309,7 +301,7 @@ const MyOrders = () => {
                       </div>
                     )}
 
-                    {/* Información de envío */}
+                   
                     {order.shipping_address && (
                       <div className="mt-6 pt-6 border-t border-secondary-200">
                         <h5 className="font-medium text-secondary-900 mb-2">Dirección de envío</h5>
