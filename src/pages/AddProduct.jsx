@@ -73,7 +73,7 @@ const AddProduct = () => {
         description: formData.description.trim(),
         price: parseFloat(formData.price),
         stock_quantity: parseInt(formData.stock),
-        category: formData.category,
+        category_id: formData.category,
         image_url: formData.image_url.trim() || null
       };
 
