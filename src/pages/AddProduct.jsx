@@ -77,10 +77,12 @@ const AddProduct = () => {
         image_url: formData.image_url.trim() || null
       };
 
-      console.log('Sending product data:', productData);
+      console.log('Sending product data:');
+      console.log(JSON.stringify(productData, null, 2));
 
       const response = await productsAPI.createProduct(productData);
-      console.log('Product created successfully:', response);
+      console.log('Product created successfully:');
+      console.log(JSON.stringify(response, null, 2));
 
       actions.addProduct(response.data);
       setMessage({ type: 'success', text: 'Producto creado exitosamente' });
@@ -98,9 +100,15 @@ const AddProduct = () => {
         navigate('/products');
       }, 2000);
     } catch (error) {
-      console.error('Full error object:', error);
-      console.error('Error response:', error.response);
-      console.error('Error message:', error.message);
+      console.log('=== ERROR DETAILS ===');
+      console.log('Full error object:');
+      console.log(JSON.stringify(error, null, 2));
+      console.log('Error response:');
+      console.log(JSON.stringify(error.response, null, 2));
+      console.log('Error response data:');
+      console.log(JSON.stringify(error.response?.data, null, 2));
+      console.log('Error message:', error.message);
+      console.log('Error status:', error.response?.status);
       
       let errorMessage = 'Error al crear el producto';
       
@@ -108,6 +116,8 @@ const AddProduct = () => {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
+      } else if (error.response?.data) {
+        errorMessage = JSON.stringify(error.response.data);
       } else if (error.message) {
         errorMessage = error.message;
       } else {
