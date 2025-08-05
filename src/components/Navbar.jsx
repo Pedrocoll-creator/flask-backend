@@ -66,24 +66,6 @@ const Navbar = () => {
               >
                 Productos
               </Link>
-              <div className="relative group">
-                <button className="font-medium text-secondary-600 hover:text-primary-600 transition-colors">
-                  Categorías
-                </button>
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-secondary-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                  <div className="py-2">
-                    {state.categories.map((category) => (
-                      <Link
-                        key={category.value}
-                        to={`/products?category=${category.value}`}
-                        className="block px-4 py-2 text-sm text-secondary-600 hover:bg-secondary-50 hover:text-primary-600 transition-colors"
-                      >
-                        {category.label}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
 
             <div className="hidden md:flex flex-1 max-w-lg mx-8">
@@ -223,20 +205,6 @@ const Navbar = () => {
                 >
                   Productos
                 </Link>
-                
-                <div className="space-y-1">
-                  <div className="py-2 text-secondary-800 font-medium">Categorías</div>
-                  {state.categories.map((category) => (
-                    <Link
-                      key={category.value}
-                      to={`/products?category=${category.value}`}
-                      onClick={() => setIsMenuOpen(false)}
-                      className="block py-1 pl-4 text-sm text-secondary-600 hover:text-primary-600 transition-colors"
-                    >
-                      {category.label}
-                    </Link>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
