@@ -47,15 +47,15 @@ const Footer = () => {
             <ul className="space-y-3 text-sm">
               <li className="flex items-center text-secondary-300">
                 <Mail className="w-4 h-4 mr-2" />
-                info@onix2.com
+                OnixViral2@gmail.com
               </li>
               <li className="flex items-center text-secondary-300">
                 <Phone className="w-4 h-4 mr-2" />
-                +52 123 456 7890
+                +34 621 327 909
               </li>
               <li className="flex items-center text-secondary-300">
                 <MapPin className="w-4 h-4 mr-2" />
-                Ciudad de México, MX
+                España ESP
               </li>
             </ul>
           </div>
