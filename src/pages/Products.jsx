@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
-import { productsAPI, categoriesAPI, handleAPIError } from '../services/api';
+import { productsAPI, handleAPIError } from '../utils/api';
 import ProductCard from '../components/ProductCard';
-import ProductImage from '../components/ProductImage';
 import { 
   Search, 
   Filter, 
@@ -12,9 +11,7 @@ import {
   Grid, 
   List,
   SlidersHorizontal,
-  ArrowUpDown,
-  ShoppingBag,
-  Loader
+  ArrowUpDown
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -52,65 +49,18 @@ const Products = () => {
   ];
 
   useEffect(() => {
-    loadProducts();
-    loadCategories();
-  }, []);
-
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      
-      const params = {
-        page: parseInt(searchParams.get('page')) || 1,
-        per_page: 12,
-        search: searchParams.get('search') || '',
-        category: searchParams.get('category') || '',
-        sort: searchParams.get('sort') || 'name'
-      };
-
-      console.log('🔍 Cargando productos con params:', params);
-      const response = await productsAPI.getProducts(params);
-      console.log('📦 Respuesta recibida:', response);
-      
-      if (response && response.products) {
-        setProducts(response.products);
-        setPagination(response.pagination || {
-          page: 1,
-          per_page: 12,
-          total: response.products.length,
-          pages: 1,
-          has_next: false,
-          has_prev: false
-        });
-        console.log('✅ Productos cargados:', response.products.length);
-      } else {
-        console.error('❌ Respuesta inesperada:', response);
-        setProducts([]);
-      }
-      
-    } catch (error) {
-      console.error('❌ Error loading products:', error);
-      toast.error('Error al cargar los productos');
-      setProducts([]);
-    } finally {
-      setLoading(false);
+    if (!state.categoriesLoaded || state.categories.length === 0) {
+      loadCategories();
     }
-  };
+  }, [state.categoriesLoaded, state.categories.length]);
 
   const loadCategories = async () => {
-    if (state.categoriesLoaded && state.categories.length > 0) {
-      console.log('✅ Categorías ya cargadas:', state.categories);
-      return;
-    }
-    
     try {
-      console.log('🔍 Cargando categorías...');
-      const response = await categoriesAPI.getCategories();
-      const categories = Array.isArray(response) ? response : response.data || [];
-      console.log('📦 Categorías recibidas:', categories);
-      actions.setCategories(categories);
+      const response = await productsAPI.getCategories();
+      actions.setCategories(response.data || response);
     } catch (error) {
-      console.error('❌ Error loading categories:', error);
+      console.error('Error loading categories:', error);
+      toast.error('Error al cargar categorías');
     }
   };
 
@@ -128,6 +78,29 @@ const Products = () => {
     
     setSearchParams(params);
   }, [searchTerm, selectedCategory, sortBy, pagination.page]);
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      
+      const params = {
+        page: parseInt(searchParams.get('page')) || 1,
+        per_page: 12,
+        search: searchParams.get('search') || '',
+        category: searchParams.get('category') || '',
+        sort: searchParams.get('sort') || 'name'
+      };
+
+      const response = await productsAPI.getProducts(params);
+      setProducts(response.data.products);
+      setPagination(response.data.pagination);
+      
+    } catch (error) {
+      toast.error(handleAPIError(error));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -171,53 +144,9 @@ const Products = () => {
         params.delete('page');
       }
       setSearchParams(params);
+      
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
-
-  const SimpleProductCard = ({ product }) => {
-    const navigate = useNavigate();
-    
-    return (
-      <div 
-        className="bg-white rounded-xl shadow-sm border border-secondary-100 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group"
-        onClick={() => navigate(`/product/${product.id}`)}
-      >
-        <div className="relative h-48 bg-secondary-100 overflow-hidden">
-          <ProductImage
-            src={product.image_url}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-          {product.stock_quantity <= 5 && product.stock_quantity > 0 && (
-            <div className="absolute top-2 left-2">
-              <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                ¡Últimas unidades!
-              </span>
-            </div>
-          )}
-        </div>
-        
-        <div className="p-4">
-          <h3 className="font-semibold text-secondary-900 mb-1 line-clamp-2 group-hover:text-primary-600 transition-colors">
-            {product.name}
-          </h3>
-          
-          <p className="text-sm text-secondary-600 mb-2 line-clamp-1">
-            {product.description || 'Producto de alta calidad'}
-          </p>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-bold text-primary-600">
-              €{product.price?.toFixed(2) || '0.00'}
-            </span>
-            <span className={`text-sm ${product.stock_quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {product.stock_quantity > 0 ? `Stock: ${product.stock_quantity}` : 'Sin stock'}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -228,12 +157,15 @@ const Products = () => {
             <div>
               <h1 className="text-3xl font-bold text-secondary-900">
                 {selectedCategory 
-                  ? state.categories.find(cat => cat.value === selectedCategory)?.label || 'Productos'
+                  ? `${state.categories.find(cat => cat.value === selectedCategory)?.label || 'Productos'}`
                   : 'Todos los Productos'
                 }
               </h1>
               <p className="text-secondary-600 mt-1">
-                {loading ? 'Cargando productos...' : `${pagination.total} productos encontrados`}
+                {pagination.total > 0 
+                  ? `${pagination.total} productos encontrados`
+                  : 'Cargando productos...'
+                }
               </p>
             </div>
             
@@ -250,12 +182,7 @@ const Products = () => {
                 {searchTerm && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      const params = new URLSearchParams(searchParams);
-                      params.delete('search');
-                      setSearchParams(params);
-                    }}
+                    onClick={() => setSearchTerm('')}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-secondary-400 hover:text-secondary-600"
                   >
                     <X className="w-4 h-4" />
@@ -284,7 +211,7 @@ const Products = () => {
             <div className={`bg-white rounded-lg shadow-sm border border-secondary-200 p-6 space-y-6 ${showFilters || 'hidden lg:block'}`}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-secondary-900">Filtros</h3>
-                {(searchTerm || selectedCategory || sortBy !== 'name' || filtersApplied) && (
+                {(searchTerm || selectedCategory || sortBy !== 'name') && (
                   <button
                     onClick={clearFilters}
                     className="text-sm text-primary-600 hover:text-primary-700 transition-colors"
@@ -297,7 +224,7 @@ const Products = () => {
               <div>
                 <h4 className="font-medium text-secondary-900 mb-3">Categorías</h4>
                 <div className="space-y-2">
-                  <label className="flex items-center cursor-pointer">
+                  <label className="flex items-center">
                     <input
                       type="radio"
                       name="category"
@@ -309,7 +236,7 @@ const Products = () => {
                     <span className="ml-2 text-sm text-secondary-700">Todas</span>
                   </label>
                   {state.categories.map((category) => (
-                    <label key={category.value} className="flex items-center cursor-pointer">
+                    <label key={category.value} className="flex items-center">
                       <input
                         type="radio"
                         name="category"
@@ -352,22 +279,47 @@ const Products = () => {
                   </button>
                 </div>
               </div>
+
+              <div>
+                <h4 className="font-medium text-secondary-900 mb-3">Disponibilidad</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 rounded"
+                    />
+                    <span className="ml-2 text-sm text-secondary-700">En stock</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 rounded"
+                    />
+                    <span className="ml-2 text-sm text-secondary-700">Envío gratis</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="lg:col-span-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-white border border-secondary-300 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                {sortOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="appearance-none bg-white border border-secondary-300 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    {sortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ArrowUpDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
+                </div>
+              </div>
 
               <div className="flex items-center space-x-2">
                 <button
@@ -394,9 +346,21 @@ const Products = () => {
             </div>
 
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Loader className="w-8 h-8 text-primary-600 animate-spin mb-4" />
-                <p className="text-secondary-600">Cargando productos...</p>
+              <div className={`grid gap-6 ${
+                viewMode === 'grid' 
+                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+                  : 'grid-cols-1'
+              }`}>
+                {[...Array(12)].map((_, index) => (
+                  <div key={index} className="bg-white rounded-xl shadow-sm border border-secondary-100 overflow-hidden animate-pulse">
+                    <div className="bg-secondary-200 h-48"></div>
+                    <div className="p-4">
+                      <div className="h-4 bg-secondary-200 rounded mb-2"></div>
+                      <div className="h-4 bg-secondary-200 rounded w-2/3 mb-4"></div>
+                      <div className="h-6 bg-secondary-200 rounded w-1/3"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : filteredProducts.length > 0 ? (
               <>
@@ -406,7 +370,12 @@ const Products = () => {
                     : 'grid-cols-1'
                 }`}>
                   {filteredProducts.map((product) => (
-                    <SimpleProductCard key={product.id} product={product} />
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      variant={viewMode === 'list' ? 'detailed' : 'default'}
+                      className={viewMode === 'list' ? 'flex flex-row' : ''}
+                    />
                   ))}
                 </div>
 
@@ -446,6 +415,15 @@ const Products = () => {
                             {pageNum}
                           </button>
                         );
+                      } else if (
+                        pageNum === pagination.page - 3 ||
+                        pageNum === pagination.page + 3
+                      ) {
+                        return (
+                          <span key={pageNum} className="px-2 py-2 text-secondary-400">
+                            ...
+                          </span>
+                        );
                       }
                       return null;
                     })}
@@ -464,25 +442,38 @@ const Products = () => {
                   </div>
                 )}
 
-                <div className="mt-4 text-center text-sm text-secondary-600">
+                <div className="mt-8 text-center text-sm text-secondary-600">
                   Mostrando {((pagination.page - 1) * pagination.per_page) + 1} - {Math.min(pagination.page * pagination.per_page, pagination.total)} de {pagination.total} productos
                 </div>
               </>
             ) : (
               <div className="text-center py-12">
-                <ShoppingBag className="w-16 h-16 text-secondary-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-secondary-900 mb-2">
-                  No se encontraron productos
-                </h3>
-                <p className="text-secondary-600 mb-6">
-                  Intenta cambiar los filtros o términos de búsqueda.
-                </p>
-                <button
-                  onClick={clearFilters}
-                  className="btn-primary"
-                >
-                  Limpiar filtros
-                </button>
+                <div className="max-w-md mx-auto">
+                  <div className="w-24 h-24 mx-auto mb-6 bg-secondary-100 rounded-full flex items-center justify-center">
+                    <Search className="w-8 h-8 text-secondary-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-secondary-900 mb-2">
+                    No se encontraron productos
+                  </h3>
+                  <p className="text-secondary-600 mb-6">
+                    No hay productos que coincidan con tus criterios de búsqueda.
+                    Intenta cambiar los filtros o términos de búsqueda.
+                  </p>
+                  <div className="space-y-3">
+                    <button
+                      onClick={clearFilters}
+                      className="block w-full btn-primary"
+                    >
+                      Limpiar filtros
+                    </button>
+                    <button
+                      onClick={() => navigate('/products')}
+                      className="block w-full btn-secondary"
+                    >
+                      Ver todos los productos
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
