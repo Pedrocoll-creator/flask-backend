@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
@@ -38,7 +39,8 @@ const ProductCard = ({
   const [currentFallbackIndex, setCurrentFallbackIndex] = useState(0);
 
   const getImageSrc = () => {
-    if (!product.image_url || imageError) {
+    // CORRECCIÓN: Verifica si la URL del backend es inválida antes de intentar cargarla
+    if (!product.image_url || imageError || product.image_url.includes('gstatic.com/shopping')) {
       return fallbackImages[currentFallbackIndex] || fallbackImages[0];
     }
     return product.image_url;
