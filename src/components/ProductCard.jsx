@@ -26,39 +26,34 @@ const ProductCard = ({
   const [isLoading, setIsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [imageLoading, setImageLoading] = useState(true);
+  const [imageSrc, setImageSrc] = useState('');
 
   const fallbackImage = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto';
 
-  // Usamos el estado para manejar la URL de la imagen
-  const [currentImageSrc, setCurrentImageSrc] = useState(fallbackImage);
-
-  // Nuevo useEffect para manejar la carga de la imagen de forma segura
   useEffect(() => {
     setImageLoading(true);
-    let imageUrlToUse = fallbackImage;
-
-    if (product.image_url) {
-      const isGoogleShoppingUrl = product.image_url.includes('gstatic.com/shopping');
-      if (!isGoogleShoppingUrl) {
-        imageUrlToUse = product.image_url;
-      }
+    let urlToLoad = product.image_url;
+    
+    // Verificamos si la URL es de Google Shopping o no existe
+    if (!product.image_url || product.image_url.includes('gstatic.com/shopping')) {
+      urlToLoad = fallbackImage;
     }
 
-    setCurrentImageSrc(imageUrlToUse);
+    const img = new Image();
+    img.src = urlToLoad;
+    
+    img.onload = () => {
+      setImageSrc(urlToLoad);
+      setImageLoading(false);
+    };
+
+    img.onerror = () => {
+      setImageSrc(fallbackImage);
+      setImageLoading(false);
+    };
+
   }, [product.image_url]);
 
-  useEffect(() => {
-    if (currentImageSrc) {
-      const img = new Image();
-      img.src = currentImageSrc;
-      img.onload = () => setImageLoading(false);
-      img.onerror = () => {
-        setImageLoading(false);
-        setCurrentImageSrc(fallbackImage);
-      };
-    }
-  }, [currentImageSrc]);
-  
   const handleAddToCart = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -147,12 +142,12 @@ const ProductCard = ({
                 </div>
               )}
               <img
-                src={currentImageSrc}
+                src={imageSrc}
                 alt={product.name}
                 className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                 loading="lazy"
               />
-              {currentImageSrc === fallbackImage && (
+              {imageSrc === fallbackImage && (
                 <div className="absolute inset-0 flex items-center justify-center bg-secondary-100">
                   <ImageIcon className="w-8 h-8 text-secondary-400" />
                 </div>
@@ -203,12 +198,12 @@ const ProductCard = ({
               </div>
             )}
             <img
-              src={currentImageSrc}
+              src={imageSrc}
               alt={product.name}
               className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
               loading="lazy"
             />
-            {currentImageSrc === fallbackImage && (
+            {imageSrc === fallbackImage && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary-100">
                 <ImageIcon className="w-12 h-12 text-secondary-400 mb-2" />
                 <span className="text-xs text-secondary-500">Imagen no disponible</span>
