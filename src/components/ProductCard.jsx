@@ -38,7 +38,8 @@ const ProductCard = ({
     if (!product.image_url || product.image_url.includes('gstatic.com/shopping')) {
       urlToLoad = fallbackImage;
     }
-
+    
+    // Asignamos la URL de forma asíncrona para que no bloquee el renderizado
     const img = new Image();
     img.src = urlToLoad;
     
@@ -51,6 +52,12 @@ const ProductCard = ({
       setImageSrc(fallbackImage);
       setImageLoading(false);
     };
+    
+    // En caso de que la imagen ya esté en caché
+    if (img.complete) {
+        setImageSrc(urlToLoad);
+        setImageLoading(false);
+    }
 
   }, [product.image_url]);
 
