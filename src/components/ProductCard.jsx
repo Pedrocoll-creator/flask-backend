@@ -26,15 +26,12 @@ const ProductCard = ({
   const [isLoading, setIsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [imageLoading, setImageLoading] = useState(true);
-  
-  // Usamos un solo estado para la URL de la imagen
   const [imageSrc, setImageSrc] = useState('');
 
   const fallbackImage = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto';
 
   useEffect(() => {
     setImageLoading(true);
-    // Verificamos si la URL del producto es válida o de Google Shopping
     const isGoogleShoppingUrl = product.image_url && product.image_url.includes('gstatic.com/shopping');
     
     if (product.image_url && !isGoogleShoppingUrl) {
@@ -42,16 +39,20 @@ const ProductCard = ({
     } else {
       setImageSrc(fallbackImage);
     }
-    
-    // Al cambiar de imagen, también reiniciamos el estado de carga
-    const img = new Image();
-    img.src = imageSrc;
-    img.onload = () => setImageLoading(false);
-    img.onerror = () => {
-      setImageSrc(fallbackImage);
-      setImageLoading(false);
-    };
-  }, [product.image_url, imageSrc]);
+  }, [product.image_url]);
+
+  useEffect(() => {
+    if (imageSrc) {
+      const img = new Image();
+      img.src = imageSrc;
+      img.onload = () => setImageLoading(false);
+      img.onerror = () => setImageLoading(false);
+    }
+  }, [imageSrc]);
+
+  const handleImageError = () => {
+    setImageSrc(fallbackImage);
+  };
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
@@ -144,7 +145,6 @@ const ProductCard = ({
                 src={imageSrc}
                 alt={product.name}
                 onError={handleImageError}
-                onLoad={handleImageLoad}
                 className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                 loading="lazy"
               />
@@ -202,7 +202,6 @@ const ProductCard = ({
               src={imageSrc}
               alt={product.name}
               onError={handleImageError}
-              onLoad={handleImageLoad}
               className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
               loading="lazy"
             />
@@ -359,3 +358,15 @@ const ProductCard = ({
 };
 
 export default ProductCard;
+
+
+
+
+
+
+
+
+
+
+
+
