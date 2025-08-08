@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
 import { cartAPI, handleAPIError, formatPrice } from '../utils/api';
@@ -29,31 +29,21 @@ const ProductCard = ({
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
-  const fallbackImages = [
-    'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto',
-    'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop',
-    'https://picsum.photos/400/300?random=' + product.id,
-    '/placeholder-product.jpg'
-  ];
-
-  const [currentFallbackIndex, setCurrentFallbackIndex] = useState(0);
+  const fallbackImage = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto';
 
   const getImageSrc = () => {
-    // CORRECCIÓN: Verifica si la URL del backend es inválida antes de intentar cargarla
-    if (!product.image_url || imageError || product.image_url.includes('gstatic.com/shopping')) {
-      return fallbackImages[currentFallbackIndex] || fallbackImages[0];
+    // CORRECCIÓN FINAL: Simplificamos la lógica de validación de la URL.
+    // Usamos el operador OR (||) directamente para elegir una URL válida.
+    const isGoogleShoppingUrl = product.image_url && product.image_url.includes('gstatic.com/shopping');
+    if (!product.image_url || isGoogleShoppingUrl) {
+      return fallbackImage;
     }
     return product.image_url;
   };
 
   const handleImageError = () => {
-    console.log(`Error loading image for product ${product.id}: ${getImageSrc()}`);
-    
-    if (currentFallbackIndex < fallbackImages.length - 1) {
-      setCurrentFallbackIndex(currentFallbackIndex + 1);
-    } else {
-      setImageError(true);
-    }
+    // Si la imagen principal falla por cualquier razón, usamos el fallback.
+    setImageError(true);
     setImageLoading(false);
   };
 
@@ -149,14 +139,14 @@ const ProductCard = ({
                 </div>
               )}
               <img
-                src={getImageSrc()}
+                src={imageError ? fallbackImage : getImageSrc()}
                 alt={product.name}
                 onError={handleImageError}
                 onLoad={handleImageLoad}
                 className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                 loading="lazy"
               />
-              {imageError && currentFallbackIndex >= fallbackImages.length - 1 && (
+              {imageError && (
                 <div className="absolute inset-0 flex items-center justify-center bg-secondary-100">
                   <ImageIcon className="w-8 h-8 text-secondary-400" />
                 </div>
@@ -207,14 +197,14 @@ const ProductCard = ({
               </div>
             )}
             <img
-              src={getImageSrc()}
+              src={imageError ? fallbackImage : getImageSrc()}
               alt={product.name}
               onError={handleImageError}
               onLoad={handleImageLoad}
               className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
               loading="lazy"
             />
-            {imageError && currentFallbackIndex >= fallbackImages.length - 1 && (
+            {imageError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary-100">
                 <ImageIcon className="w-12 h-12 text-secondary-400 mb-2" />
                 <span className="text-xs text-secondary-500">Imagen no disponible</span>
