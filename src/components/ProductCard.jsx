@@ -26,29 +26,32 @@ const ProductCard = ({
   const [isLoading, setIsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [imageLoading, setImageLoading] = useState(true);
+  
+  // Usamos un solo estado para la URL de la imagen
   const [imageSrc, setImageSrc] = useState('');
 
   const fallbackImage = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto';
 
   useEffect(() => {
-    // CORRECCIÓN: Usamos un useEffect para validar la URL
-    // y establecer el estado de la imagen de forma reactiva.
+    setImageLoading(true);
+    // Verificamos si la URL del producto es válida o de Google Shopping
     const isGoogleShoppingUrl = product.image_url && product.image_url.includes('gstatic.com/shopping');
-    if (!product.image_url || isGoogleShoppingUrl) {
-      setImageSrc(fallbackImage);
-    } else {
+    
+    if (product.image_url && !isGoogleShoppingUrl) {
       setImageSrc(product.image_url);
+    } else {
+      setImageSrc(fallbackImage);
     }
-  }, [product.image_url]);
-
-  const handleImageError = () => {
-    setImageSrc(fallbackImage);
-    setImageLoading(false);
-  };
-
-  const handleImageLoad = () => {
-    setImageLoading(false);
-  };
+    
+    // Al cambiar de imagen, también reiniciamos el estado de carga
+    const img = new Image();
+    img.src = imageSrc;
+    img.onload = () => setImageLoading(false);
+    img.onerror = () => {
+      setImageSrc(fallbackImage);
+      setImageLoading(false);
+    };
+  }, [product.image_url, imageSrc]);
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
