@@ -26,34 +26,39 @@ const ProductCard = ({
   const [isLoading, setIsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [imageLoading, setImageLoading] = useState(true);
-  const [imageSrc, setImageSrc] = useState('');
 
   const fallbackImage = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto';
 
+  // Usamos el estado para manejar la URL de la imagen
+  const [currentImageSrc, setCurrentImageSrc] = useState(fallbackImage);
+
+  // Nuevo useEffect para manejar la carga de la imagen de forma segura
   useEffect(() => {
     setImageLoading(true);
-    const isGoogleShoppingUrl = product.image_url && product.image_url.includes('gstatic.com/shopping');
-    
-    if (product.image_url && !isGoogleShoppingUrl) {
-      setImageSrc(product.image_url);
-    } else {
-      setImageSrc(fallbackImage);
+    let imageUrlToUse = fallbackImage;
+
+    if (product.image_url) {
+      const isGoogleShoppingUrl = product.image_url.includes('gstatic.com/shopping');
+      if (!isGoogleShoppingUrl) {
+        imageUrlToUse = product.image_url;
+      }
     }
+
+    setCurrentImageSrc(imageUrlToUse);
   }, [product.image_url]);
 
   useEffect(() => {
-    if (imageSrc) {
+    if (currentImageSrc) {
       const img = new Image();
-      img.src = imageSrc;
+      img.src = currentImageSrc;
       img.onload = () => setImageLoading(false);
-      img.onerror = () => setImageLoading(false);
+      img.onerror = () => {
+        setImageLoading(false);
+        setCurrentImageSrc(fallbackImage);
+      };
     }
-  }, [imageSrc]);
-
-  const handleImageError = () => {
-    setImageSrc(fallbackImage);
-  };
-
+  }, [currentImageSrc]);
+  
   const handleAddToCart = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -110,9 +115,9 @@ const ProductCard = ({
   };
 
   const handleQuickView = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigate(`/product/${product.id}`);
+      e.preventDefault();
+      e.stopPropagation();
+      navigate(`/product/${product.id}`);
   };
 
   const getStockStatus = () => {
@@ -142,13 +147,12 @@ const ProductCard = ({
                 </div>
               )}
               <img
-                src={imageSrc}
+                src={currentImageSrc}
                 alt={product.name}
-                onError={handleImageError}
                 className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                 loading="lazy"
               />
-              {imageSrc === fallbackImage && (
+              {currentImageSrc === fallbackImage && (
                 <div className="absolute inset-0 flex items-center justify-center bg-secondary-100">
                   <ImageIcon className="w-8 h-8 text-secondary-400" />
                 </div>
@@ -199,13 +203,12 @@ const ProductCard = ({
               </div>
             )}
             <img
-              src={imageSrc}
+              src={currentImageSrc}
               alt={product.name}
-              onError={handleImageError}
               className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
               loading="lazy"
             />
-            {imageSrc === fallbackImage && (
+            {currentImageSrc === fallbackImage && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary-100">
                 <ImageIcon className="w-12 h-12 text-secondary-400 mb-2" />
                 <span className="text-xs text-secondary-500">Imagen no disponible</span>
@@ -358,15 +361,3 @@ const ProductCard = ({
 };
 
 export default ProductCard;
-
-
-
-
-
-
-
-
-
-
-
-
