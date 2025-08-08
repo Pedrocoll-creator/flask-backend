@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
 import { cartAPI, handleAPIError, formatPrice } from '../utils/api';
-import { 
-  Star, 
-  Heart, 
-  ShoppingCart, 
+import {
+  Star,
+  Heart,
+  ShoppingCart,
   Eye,
   Plus,
   Minus,
@@ -14,9 +13,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
-const ProductCard = ({ 
-  product, 
-  showQuickView = true, 
+const ProductCard = ({
+  product,
+  showQuickView = true,
   showWishlist = true,
   className = "",
   variant = "default"
@@ -26,24 +25,24 @@ const ProductCard = ({
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const [imageSrc, setImageSrc] = useState('');
 
   const fallbackImage = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto';
 
-  const getImageSrc = () => {
-    // CORRECCIÓN FINAL: Simplificamos la lógica de validación de la URL.
-    // Usamos el operador OR (||) directamente para elegir una URL válida.
+  useEffect(() => {
+    // CORRECCIÓN: Usamos un useEffect para validar la URL
+    // y establecer el estado de la imagen de forma reactiva.
     const isGoogleShoppingUrl = product.image_url && product.image_url.includes('gstatic.com/shopping');
     if (!product.image_url || isGoogleShoppingUrl) {
-      return fallbackImage;
+      setImageSrc(fallbackImage);
+    } else {
+      setImageSrc(product.image_url);
     }
-    return product.image_url;
-  };
+  }, [product.image_url]);
 
   const handleImageError = () => {
-    // Si la imagen principal falla por cualquier razón, usamos el fallback.
-    setImageError(true);
+    setImageSrc(fallbackImage);
     setImageLoading(false);
   };
 
@@ -68,18 +67,18 @@ const ProductCard = ({
 
     try {
       setIsLoading(true);
-      await cartAPI.addToCart({ 
-        product_id: product.id, 
-        quantity: quantity 
+      await cartAPI.addToCart({
+        product_id: product.id,
+        quantity: quantity
       });
-      
+
       actions.addToCart({
         id: Date.now(),
         product_id: product.id,
         product: product,
         quantity: quantity
       });
-      
+
       toast.success(`${product.name} agregado al carrito`);
     } catch (error) {
       toast.error(handleAPIError(error));
@@ -91,7 +90,7 @@ const ProductCard = ({
   const handleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!getters.isAuthenticated) {
       toast.info('Inicia sesión para agregar a favoritos');
       navigate('/login');
@@ -100,8 +99,8 @@ const ProductCard = ({
 
     setIsWishlisted(!isWishlisted);
     toast.success(
-      isWishlisted 
-        ? 'Eliminado de favoritos' 
+      isWishlisted
+        ? 'Eliminado de favoritos'
         : 'Agregado a favoritos'
     );
   };
@@ -139,14 +138,14 @@ const ProductCard = ({
                 </div>
               )}
               <img
-                src={imageError ? fallbackImage : getImageSrc()}
+                src={imageSrc}
                 alt={product.name}
                 onError={handleImageError}
                 onLoad={handleImageLoad}
                 className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                 loading="lazy"
               />
-              {imageError && (
+              {imageSrc === fallbackImage && (
                 <div className="absolute inset-0 flex items-center justify-center bg-secondary-100">
                   <ImageIcon className="w-8 h-8 text-secondary-400" />
                 </div>
@@ -197,14 +196,14 @@ const ProductCard = ({
               </div>
             )}
             <img
-              src={imageError ? fallbackImage : getImageSrc()}
+              src={imageSrc}
               alt={product.name}
               onError={handleImageError}
               onLoad={handleImageLoad}
               className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
               loading="lazy"
             />
-            {imageError && (
+            {imageSrc === fallbackImage && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary-100">
                 <ImageIcon className="w-12 h-12 text-secondary-400 mb-2" />
                 <span className="text-xs text-secondary-500">Imagen no disponible</span>
@@ -212,7 +211,7 @@ const ProductCard = ({
             )}
           </div>
         </Link>
-        
+
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
           <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0">
             {showQuickView && (
@@ -254,13 +253,13 @@ const ProductCard = ({
           </div>
         )}
       </div>
-      
+
       <div className="p-4">
         <div className="flex items-center mb-2">
           <div className="flex items-center text-yellow-400 mr-2">
             {[...Array(5)].map((_, i) => (
-              <Star 
-                key={i} 
+              <Star
+                key={i}
                 className={`w-4 h-4 ${i < (product.rating || 4) ? 'fill-current' : 'text-secondary-300'}`}
               />
             ))}
@@ -269,23 +268,23 @@ const ProductCard = ({
             ({product.rating || 4.8}) · {product.reviews || Math.floor(Math.random() * 50) + 10} reseñas
           </span>
         </div>
-        
+
         <h3 className="font-semibold text-secondary-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">
           <Link to={`/product/${product.id}`}>
             {product.name}
           </Link>
         </h3>
-        
+
         <p className="text-sm text-secondary-600 mb-3 line-clamp-2">
           {product.description || 'Producto de alta calidad con las mejores características del mercado.'}
         </p>
-        
+
         <div className="mb-3">
           <span className="inline-block bg-secondary-100 text-secondary-700 px-2 py-1 rounded-full text-xs font-medium">
             {product.category?.name || product.category || 'General'}
           </span>
         </div>
-        
+
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -298,7 +297,7 @@ const ProductCard = ({
                 </span>
               )}
             </div>
-            
+
             <div className="flex items-center text-sm text-secondary-500">
               <span className={stockStatus.textColor}>
                 Stock: {stock}
@@ -333,7 +332,7 @@ const ProductCard = ({
               </div>
             </div>
           )}
-          
+
           <button
             onClick={handleAddToCart}
             disabled={stock === 0 || isLoading}
