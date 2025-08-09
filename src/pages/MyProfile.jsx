@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
 import { authAPI, handleAPIError } from '../utils/api.js';
 import { 
@@ -11,14 +12,20 @@ import {
   X,
   AlertCircle,
   CheckCircle,
-  Shield
+  Shield,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 
 const MyProfile = () => {
   const { state, actions } = useStore();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     first_name: '',
@@ -105,6 +112,56 @@ const MyProfile = () => {
     setMessage({ type: '', text: '' });
   };
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'ELIMINAR') {
+      setMessage({ type: 'error', text: 'Debes escribir "ELIMINAR" para confirmar' });
+      return;
+    }
+
+    setDeleteLoading(true);
+    
+    try {
+      await authAPI.deleteAccount();
+      
+      actions.logout();
+      
+      navigate('/register', { 
+        state: { 
+          message: { 
+            type: 'success', 
+            text: 'Tu cuenta ha sido eliminada exitosamente' 
+          } 
+        } 
+      });
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      
+      let errorMessage = 'Error al eliminar la cuenta';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = handleAPIError(error);
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
+      setShowDeleteModal(false);
+      setDeleteConfirmation('');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteConfirmation('');
+    setMessage({ type: '', text: '' });
+  };
+
   return (
     <div className="min-h-screen bg-secondary-50 py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -136,7 +193,6 @@ const MyProfile = () => {
         )}
 
         <div className="bg-white rounded-xl shadow-sm border border-secondary-200 overflow-hidden">
-          
           <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -168,7 +224,6 @@ const MyProfile = () => {
 
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-secondary-900 border-b border-secondary-200 pb-2">
                   Información Personal
@@ -361,7 +416,125 @@ const MyProfile = () => {
             </form>
           </div>
         </div>
+
+        <div className="mt-8 bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
+          <div className="px-6 py-4 bg-red-50 border-b border-red-200">
+            <h3 className="text-lg font-semibold text-red-900 flex items-center">
+              <AlertTriangle className="w-5 h-5 mr-2" />
+              Zona Peligrosa
+            </h3>
+            <p className="text-sm text-red-700 mt-1">
+              Las acciones realizadas aquí son irreversibles
+            </p>
+          </div>
+          
+          <div className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+              <div>
+                <h4 className="text-lg font-medium text-secondary-900">
+                  Eliminar cuenta
+                </h4>
+                <p className="text-sm text-secondary-600 mt-1">
+                  Elimina permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.
+                </p>
+              </div>
+              
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                <Trash2 className="w-5 h-5" />
+                <span>Eliminar Cuenta</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="bg-red-100 p-3 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900">
+                    ¿Estás seguro?
+                  </h3>
+                  <p className="text-sm text-secondary-600">
+                    Esta acción no se puede deshacer
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-secondary-700 mb-4">
+                  Al eliminar tu cuenta:
+                </p>
+                <ul className="text-sm text-secondary-600 space-y-2 mb-4">
+                  <li className="flex items-center">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                    Se eliminarán todos tus datos personales
+                  </li>
+                  <li className="flex items-center">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                    Se cancelarán todos tus pedidos pendientes
+                  </li>
+                  <li className="flex items-center">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                    Perderás acceso a tu historial de compras
+                  </li>
+                  <li className="flex items-center">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                    No podrás recuperar tu cuenta
+                  </li>
+                </ul>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
+                    Para confirmar, escribe "ELIMINAR" en el campo:
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    placeholder="ELIMINAR"
+                    className="w-full px-4 py-3 border border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={closeDeleteModal}
+                  className="flex-1 px-4 py-3 text-secondary-700 bg-secondary-100 rounded-lg hover:bg-secondary-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmation !== 'ELIMINAR' || deleteLoading}
+                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Eliminando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-5 h-5" />
+                      <span>Eliminar Cuenta</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

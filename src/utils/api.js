@@ -47,6 +47,7 @@ export const authAPI = {
   getProfile: () => api.get('/profile'),
   updateProfile: (userData) => api.put('/profile', userData),
   deleteProfile: () => api.delete('/profile'),
+  deleteAccount: () => api.delete('/auth/delete-account'),
 };
 
 export const productsAPI = {
