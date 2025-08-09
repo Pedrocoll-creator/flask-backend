@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
@@ -36,10 +34,12 @@ const ProductCard = ({
     setImageLoading(true);
     let urlToLoad = product.image_url;
     
+    // Verificamos si la URL es de Google Shopping o no existe
     if (!product.image_url || product.image_url.includes('gstatic.com/shopping')) {
       urlToLoad = fallbackImage;
     }
     
+    // Asignamos la URL de forma asíncrona para que no bloquee el renderizado
     const img = new Image();
     img.src = urlToLoad;
     
@@ -53,6 +53,7 @@ const ProductCard = ({
       setImageLoading(false);
     };
     
+    // En caso de que la imagen ya esté en caché
     if (img.complete) {
         setImageSrc(urlToLoad);
         setImageLoading(false);
@@ -362,15 +363,3 @@ const ProductCard = ({
 };
 
 export default ProductCard;
-
-
-
-
-
-
-
-
-
-
-
-
