@@ -25,17 +25,13 @@ const Footer = () => {
             <ul className="space-y-2 text-sm">
               <li><Link to="/" className="text-secondary-300 hover:text-primary-400 transition-colors">Inicio</Link></li>
               <li><Link to="/products" className="text-secondary-300 hover:text-primary-400 transition-colors">Productos</Link></li>
-              <li><Link to="/products?category=electronics" className="text-secondary-300 hover:text-primary-400 transition-colors">Electrónicos</Link></li>
-              <li><Link to="/products?category=clothing" className="text-secondary-300 hover:text-primary-400 transition-colors">Ropa</Link></li>
-            </ul>
+             
           </div>
 
          
           <div>
             <h4 className="font-semibold text-white mb-4">Mi Cuenta 👤</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/profile" className="text-secondary-300 hover:text-primary-400 transition-colors">Perfil</Link></li>
-              <li><Link to="/orders" className="text-secondary-300 hover:text-primary-400 transition-colors">Mis Pedidos</Link></li>
               <li><Link to="/cart" className="text-secondary-300 hover:text-primary-400 transition-colors">Carrito</Link></li>
               <li><Link to="/login" className="text-secondary-300 hover:text-primary-400 transition-colors">Iniciar Sesión</Link></li>
             </ul>
