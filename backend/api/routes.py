@@ -1,3 +1,25 @@
+
+Claro. Entiendo tu frustración y me disculpo por los errores. Tienes toda la razón, el problema está en el backend.
+
+El error net::ERR_NAME_NOT_RESOLVED que viste significa que el navegador no puede encontrar el servidor al que apunta la URL de la imagen. La URL 6b7280:1 no es una dirección web válida, lo que indica que algo en tu código está generando una URL malformada.
+
+He revisado el archivo routes.py y he identificado la causa más probable: tu backend no está validando las URLs de las imágenes. Cuando el frontend envía una URL de Google Shopping (como https://encrypted-tbn...), el backend la guarda tal cual. Esas URLs no son enlaces directos a imágenes, y por eso el navegador no las puede mostrar.
+
+A continuación, te doy el código corregido de routes.py con un proxy de imágenes. Este proxy actuará como un intermediario:
+
+Tu frontend llamará a tu backend con la URL de la imagen (/image-proxy?url=...).
+
+Tu backend, usando la librería requests, intentará cargar la imagen desde la URL original de Google.
+
+Si la carga es exitosa, tu backend le enviará la imagen a tu frontend.
+
+Si la carga falla (por ejemplo, porque la URL está rota), tu backend le enviará una imagen de reserva.
+
+Esto soluciona el problema de raíz en tu backend sin que tengas que modificar la base de datos ni los productos.
+
+Código corregido del routes.py
+Python
+
 import uuid
 import os
 import secrets
@@ -5,9 +27,9 @@ from datetime import datetime
 from email_validator import validate_email, EmailNotValidError
 from sqlalchemy import or_
 
+import requests
 import stripe
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_current_user
+from flask import Blueprint, request, jsonify, Response, redirect
 
 from api.models import db, User, Product, CartItem, Order, OrderItem, Category, OrderStatusEnum, PaymentStatusEnum
 from api.utils import APIException
@@ -150,6 +172,40 @@ def delete_profile():
         
     except Exception as e:
         raise APIException(f"Error al desactivar cuenta: {str(e)}", status_code=500)
+
+@api.route('/image-proxy')
+def image_proxy():
+    url = request.args.get('url')
+    if not url:
+        return jsonify({"error": "URL requerida"}), 400
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Referer': 'https://www.google.com/'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10, stream=True)
+        response.raise_for_status()
+        
+        return Response(
+            response.content,
+            mimetype=response.headers.get('content-type', 'image/jpeg'),
+            headers={
+                'Cache-Control': 'public, max-age=86400',
+                'Access-Control-Allow-Origin': '*'
+            }
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"Error proxying image: {e}")
+        return redirect('https://via.placeholder.com/400x300?text=Imagen+no+disponible')
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({"error": "Error al cargar imagen"}), 500
 
 @api.route('/products', methods=['GET'])
 def get_products():
