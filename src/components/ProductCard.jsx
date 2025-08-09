@@ -33,16 +33,18 @@ const ProductCard = ({
   useEffect(() => {
     setImageLoading(true);
     let urlToLoad = product.image_url;
-    
-    // Verificamos si la URL es de Google Shopping o no existe
-    if (!product.image_url || product.image_url.includes('gstatic.com/shopping')) {
+
+    if (!product.image_url) {
       urlToLoad = fallbackImage;
+    } else if (product.image_url.includes('encrypted-tbn') ||
+               product.image_url.includes('gstatic.com') ||
+               product.image_url.includes('googleusercontent.com')) {
+      urlToLoad = `/api/image-proxy?url=${encodeURIComponent(product.image_url)}`;
     }
-    
-    // Asignamos la URL de forma asíncrona para que no bloquee el renderizado
+
     const img = new Image();
     img.src = urlToLoad;
-    
+
     img.onload = () => {
       setImageSrc(urlToLoad);
       setImageLoading(false);
@@ -52,13 +54,12 @@ const ProductCard = ({
       setImageSrc(fallbackImage);
       setImageLoading(false);
     };
-    
-    // En caso de que la imagen ya esté en caché
+
     if (img.complete) {
         setImageSrc(urlToLoad);
         setImageLoading(false);
     }
-
+    
   }, [product.image_url]);
 
   const handleAddToCart = async (e) => {
@@ -363,3 +364,9 @@ const ProductCard = ({
 };
 
 export default ProductCard;
+
+
+
+
+
+
