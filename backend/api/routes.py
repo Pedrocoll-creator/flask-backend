@@ -9,7 +9,7 @@ import stripe
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_current_user
 
-from api.models import db, User, Product, CartItem, Orde-m r, OrderItem, Category, OrderStatusEnum, PaymentStatusEnum
+from api.models import db, User, Product, CartItem, Order, OrderItem, Category, OrderStatusEnum, PaymentStatusEnum
 from api.utils import APIException
 
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
