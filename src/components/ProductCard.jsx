@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
 import { cartAPI, handleAPIError, formatPrice } from '../utils/api';
@@ -25,41 +25,22 @@ const ProductCard = ({
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [imageLoading, setImageLoading] = useState(true);
-  const [imageSrc, setImageSrc] = useState('');
 
-  const fallbackImage = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Producto';
-
-  useEffect(() => {
-    setImageLoading(true);
-    let urlToLoad = product.image_url;
-    
-    // Verificamos si la URL es de Google Shopping o no existe
-    if (!product.image_url || product.image_url.includes('gstatic.com/shopping')) {
-      urlToLoad = fallbackImage;
+  // Función simple para obtener la URL de la imagen
+  const getImageUrl = () => {
+    if (!product.image_url) {
+      return `https://via.placeholder.com/400x300?text=${encodeURIComponent(product.name || 'Producto')}`;
     }
     
-    // Asignamos la URL de forma asíncrona para que no bloquee el renderizado
-    const img = new Image();
-    img.src = urlToLoad;
-    
-    img.onload = () => {
-      setImageSrc(urlToLoad);
-      setImageLoading(false);
-    };
-
-    img.onerror = () => {
-      setImageSrc(fallbackImage);
-      setImageLoading(false);
-    };
-    
-    // En caso de que la imagen ya esté en caché
-    if (img.complete) {
-        setImageSrc(urlToLoad);
-        setImageLoading(false);
+    // Si es de Google Shopping (no funcionará)
+    if (product.image_url.includes('encrypted-tbn') || 
+        product.image_url.includes('gstatic.com')) {
+      return `https://via.placeholder.com/400x300?text=${encodeURIComponent(product.name || 'Producto')}`;
     }
-
-  }, [product.image_url]);
+    
+    // Para todas las demás URLs
+    return product.image_url;
+  };
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
@@ -117,9 +98,9 @@ const ProductCard = ({
   };
 
   const handleQuickView = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      navigate(`/product/${product.id}`);
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/product/${product.id}`);
   };
 
   const getStockStatus = () => {
@@ -143,22 +124,15 @@ const ProductCard = ({
         <div className="bg-white rounded-lg shadow-sm border border-secondary-100 overflow-hidden hover:shadow-md transition-all duration-300">
           <div className="relative">
             <div className="relative w-full h-32 bg-secondary-100 overflow-hidden">
-              {imageLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-secondary-100">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-                </div>
-              )}
               <img
-                src={imageSrc}
+                src={getImageUrl()}
                 alt={product.name}
-                className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 loading="lazy"
+                onError={(e) => {
+                  e.target.src = `https://via.placeholder.com/400x300?text=Error`;
+                }}
               />
-              {imageSrc === fallbackImage && (
-                <div className="absolute inset-0 flex items-center justify-center bg-secondary-100">
-                  <ImageIcon className="w-8 h-8 text-secondary-400" />
-                </div>
-              )}
             </div>
             {stock <= 5 && stock > 0 && (
               <div className="absolute top-2 left-2">
@@ -199,23 +173,15 @@ const ProductCard = ({
       <div className="relative overflow-hidden">
         <Link to={`/product/${product.id}`}>
           <div className="relative w-full h-48 bg-secondary-100 overflow-hidden">
-            {imageLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-secondary-100 z-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-              </div>
-            )}
             <img
-              src={imageSrc}
+              src={getImageUrl()}
               alt={product.name}
-              className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               loading="lazy"
+              onError={(e) => {
+                e.target.src = `https://via.placeholder.com/400x300?text=Error`;
+              }}
             />
-            {imageSrc === fallbackImage && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary-100">
-                <ImageIcon className="w-12 h-12 text-secondary-400 mb-2" />
-                <span className="text-xs text-secondary-500">Imagen no disponible</span>
-              </div>
-            )}
           </div>
         </Link>
 
