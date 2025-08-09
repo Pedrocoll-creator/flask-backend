@@ -5,9 +5,9 @@ from datetime import datetime
 from email_validator import validate_email, EmailNotValidError
 from sqlalchemy import or_
 
-import requests
 import stripe
-from flask import Blueprint, request, jsonify, Response, redirect
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import create_access_token, jwt_required, get_current_user
 
 from api.models import db, User, Product, CartItem, Order, OrderItem, Category, OrderStatusEnum, PaymentStatusEnum
 from api.utils import APIException
@@ -150,40 +150,6 @@ def delete_profile():
         
     except Exception as e:
         raise APIException(f"Error al desactivar cuenta: {str(e)}", status_code=500)
-
-@api.route('/image-proxy')
-def image_proxy():
-    url = request.args.get('url')
-    if not url:
-        return jsonify({"error": "URL requerida"}), 400
-    
-    try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Referer': 'https://www.google.com/'
-        }
-        
-        response = requests.get(url, headers=headers, timeout=10, stream=True)
-        response.raise_for_status()
-        
-        return Response(
-            response.content,
-            mimetype=response.headers.get('content-type', 'image/jpeg'),
-            headers={
-                'Cache-Control': 'public, max-age=86400',
-                'Access-Control-Allow-Origin': '*'
-            }
-        )
-    except requests.exceptions.RequestException as e:
-        print(f"Error proxying image: {e}")
-        return redirect('https://via.placeholder.com/400x300?text=Imagen+no+disponible')
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        return jsonify({"error": "Error al cargar imagen"}), 500
 
 @api.route('/products', methods=['GET'])
 def get_products():
