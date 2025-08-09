@@ -48,6 +48,14 @@ export const authAPI = {
   updateProfile: (userData) => api.put('/profile', userData),
   deleteProfile: () => api.delete('/profile'),
   deleteAccount: () => api.delete('/auth/delete-account'),
+  uploadProfilePhoto: (formData) => {
+    return api.post('/profile/photo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 30000
+    });
+  },
 };
 
 export const productsAPI = {
@@ -90,6 +98,7 @@ export const handleAPIError = (error) => {
       case 403: return 'Acceso denegado';
       case 404: return 'Recurso no encontrado';
       case 409: return message || 'Conflicto de datos';
+      case 413: return 'Archivo demasiado grande';
       case 422: return message || 'Datos no procesables';
       case 500: return 'Error interno del servidor';
       default: return message || 'Error del servidor';

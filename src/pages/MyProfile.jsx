@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
 import { authAPI, handleAPIError } from '../utils/api.js';
@@ -14,18 +14,26 @@ import {
   CheckCircle,
   Shield,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 const MyProfile = () => {
   const { state, actions } = useStore();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   
   const [formData, setFormData] = useState({
     first_name: '',
@@ -48,6 +56,7 @@ const MyProfile = () => {
         city: state.user.city || '',
         postal_code: state.user.postal_code || ''
       });
+      setProfilePhoto(state.user.profile_photo || null);
     }
   }, [state.user]);
 
@@ -57,6 +66,98 @@ const MyProfile = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'La imagen debe ser menor a 5MB' });
+        return;
+      }
+
+      if (!file.type.startsWith('image/')) {
+        setMessage({ type: 'error', text: 'Solo se permiten archivos de imagen' });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+      
+      uploadPhoto(file);
+    }
+  };
+
+  const uploadPhoto = async (file) => {
+    setPhotoLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      const response = await authAPI.uploadProfilePhoto(formData);
+      
+      setProfilePhoto(response.data.photo_url);
+      actions.updateUser({
+        ...state.user,
+        profile_photo: response.data.photo_url
+      });
+      
+      setMessage({ type: 'success', text: 'Foto de perfil actualizada exitosamente' });
+      setPhotoPreview(null);
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      
+      let errorMessage = 'Error al subir la foto';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else {
+        errorMessage = handleAPIError(error);
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
+      setPhotoPreview(null);
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
+  const removePhoto = async () => {
+    if (!profilePhoto) return;
+
+    setPhotoLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      await authAPI.removeProfilePhoto();
+      
+      setProfilePhoto(null);
+      actions.updateUser({
+        ...state.user,
+        profile_photo: null
+      });
+      
+      setMessage({ type: 'success', text: 'Foto de perfil eliminada exitosamente' });
+    } catch (error) {
+      console.error('Error removing photo:', error);
+      
+      let errorMessage = 'Error al eliminar la foto';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else {
+        errorMessage = handleAPIError(error);
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
+    } finally {
+      setPhotoLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -162,6 +263,22 @@ const MyProfile = () => {
     setMessage({ type: '', text: '' });
   };
 
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const getProfileImageUrl = () => {
+    if (photoPreview) return photoPreview;
+    if (profilePhoto) return profilePhoto;
+    return null;
+  };
+
+  const generateAvatarInitials = () => {
+    const firstName = state.user?.first_name || '';
+    const lastName = state.user?.last_name || '';
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || 'U';
+  };
+
   return (
     <div className="min-h-screen bg-secondary-50 py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -194,16 +311,55 @@ const MyProfile = () => {
 
         <div className="bg-white rounded-xl shadow-sm border border-secondary-200 overflow-hidden">
           <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="bg-white bg-opacity-20 p-3 rounded-full">
-                  <User className="w-8 h-8 text-white" />
+            <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+              <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-white bg-opacity-20 flex items-center justify-center">
+                    {getProfileImageUrl() ? (
+                      <img
+                        src={getProfileImageUrl()}
+                        alt="Foto de perfil"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-2xl font-bold text-white">
+                        {generateAvatarInitials()}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="absolute -bottom-1 -right-1 flex space-x-1">
+                    <button
+                      onClick={triggerFileInput}
+                      disabled={photoLoading}
+                      className="bg-white text-primary-600 p-2 rounded-full shadow-md hover:bg-primary-50 transition-colors disabled:opacity-50"
+                      title="Cambiar foto"
+                    >
+                      {photoLoading ? (
+                        <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
+                    </button>
+                    
+                    {profilePhoto && (
+                      <button
+                        onClick={removePhoto}
+                        disabled={photoLoading}
+                        className="bg-red-500 text-white p-2 rounded-full shadow-md hover:bg-red-600 transition-colors disabled:opacity-50"
+                        title="Eliminar foto"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="text-white">
+                
+                <div className="text-white text-center sm:text-left">
                   <h2 className="text-xl font-semibold">
                     {state.user?.first_name} {state.user?.last_name}
                   </h2>
-                  <p className="text-primary-100 flex items-center">
+                  <p className="text-primary-100 flex items-center justify-center sm:justify-start">
                     <Mail className="w-4 h-4 mr-1" />
                     {state.user?.email}
                   </p>
@@ -221,6 +377,14 @@ const MyProfile = () => {
               )}
             </div>
           </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoChange}
+            className="hidden"
+          />
 
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
