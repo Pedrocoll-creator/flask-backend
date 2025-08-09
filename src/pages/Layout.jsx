@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { Heart, Mail, Phone, MapPin } from 'lucide-react';
 
@@ -23,10 +23,10 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold text-white mb-4">Enlaces Rápidos</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="/" className="text-secondary-300 hover:text-primary-400 transition-colors">Inicio</a></li>
-              <li><a href="/products" className="text-secondary-300 hover:text-primary-400 transition-colors">Productos</a></li>
-              <li><a href="/products?category=electronics" className="text-secondary-300 hover:text-primary-400 transition-colors">Electrónicos</a></li>
-              <li><a href="/products?category=clothing" className="text-secondary-300 hover:text-primary-400 transition-colors">Ropa</a></li>
+              <li><Link to="/" className="text-secondary-300 hover:text-primary-400 transition-colors">Inicio</Link></li>
+              <li><Link to="/products" className="text-secondary-300 hover:text-primary-400 transition-colors">Productos</Link></li>
+              <li><Link to="/products?category=electronics" className="text-secondary-300 hover:text-primary-400 transition-colors">Electrónicos</Link></li>
+              <li><Link to="/products?category=clothing" className="text-secondary-300 hover:text-primary-400 transition-colors">Ropa</Link></li>
             </ul>
           </div>
 
@@ -34,10 +34,10 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold text-white mb-4">Mi Cuenta</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="/profile" className="text-secondary-300 hover:text-primary-400 transition-colors">Perfil</a></li>
-              <li><a href="/orders" className="text-secondary-300 hover:text-primary-400 transition-colors">Mis Pedidos</a></li>
-              <li><a href="/cart" className="text-secondary-300 hover:text-primary-400 transition-colors">Carrito</a></li>
-              <li><a href="/login" className="text-secondary-300 hover:text-primary-400 transition-colors">Iniciar Sesión</a></li>
+              <li><Link to="/profile" className="text-secondary-300 hover:text-primary-400 transition-colors">Perfil</Link></li>
+              <li><Link to="/orders" className="text-secondary-300 hover:text-primary-400 transition-colors">Mis Pedidos</Link></li>
+              <li><Link to="/cart" className="text-secondary-300 hover:text-primary-400 transition-colors">Carrito</Link></li>
+              <li><Link to="/login" className="text-secondary-300 hover:text-primary-400 transition-colors">Iniciar Sesión</Link></li>
             </ul>
           </div>
 
