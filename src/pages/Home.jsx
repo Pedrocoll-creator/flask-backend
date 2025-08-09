@@ -255,12 +255,14 @@ const Home = () => {
                 >
                   <div className={`bg-gradient-to-br ${colors[index]} rounded-xl p-6 text-white text-center transform transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg`}>
                     <div className="text-3xl mb-3">
-                      {index === 0 && '♛'}
-                      {index === 1 && '♜'}
-                      {index === 2 && '♝'}
-                      {index === 3 && '♞'}
-                      {index === 4 && '♔'}
-                    
+                      {index === 0 && '💍'}
+                      {index === 1 && '😌'}
+                      {index === 2 && '🚀'}
+                      {index === 3 && '😶‍🌫️'}
+                      {index === 4 && '⌚️'}
+                      {index === 5 && '💄'}
+                      {index === 6 && '🧸'}
+                      {index === 7 && '🔧'}
                     </div>
                     <h3 className="font-semibold text-lg">{category.label}</h3>
                   </div>
