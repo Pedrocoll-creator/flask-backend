@@ -48,7 +48,6 @@ const Products = () => {
     { value: 'stock', label: 'Stock Disponible' }
   ];
 
-
   const mockProducts = [
     {
       id: 1,
@@ -160,6 +159,27 @@ const Products = () => {
     }
   ];
 
+  const sortProducts = (products, sortBy) => {
+    const sorted = [...products];
+    
+    switch (sortBy) {
+      case 'name':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case 'name_desc':
+        return sorted.sort((a, b) => b.name.localeCompare(a.name));
+      case 'price':
+        return sorted.sort((a, b) => a.price - b.price);
+      case 'price_desc':
+        return sorted.sort((a, b) => b.price - a.price);
+      case 'stock':
+        return sorted.sort((a, b) => b.stock - a.stock);
+      case 'created_at':
+        return sorted.sort((a, b) => b.id - a.id);
+      default:
+        return sorted;
+    }
+  };
+
   useEffect(() => {
     if (!state.categoriesLoaded || state.categories.length === 0) {
       loadCategories();
@@ -205,9 +225,7 @@ const Products = () => {
 
       const response = await productsAPI.getProducts(params);
       
-      
       if (response.data && response.data.products && response.data.products.length > 0) {
-       
         const productsWithImages = response.data.products.map(product => ({
           ...product,
           image_url: product.image_url || product.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop'
@@ -222,9 +240,7 @@ const Products = () => {
     } catch (error) {
       console.error('Error loading products:', error);
       
-      
       let filteredMockProducts = [...mockProducts];
-      
       
       if (searchParams.get('search')) {
         const searchTerm = searchParams.get('search').toLowerCase();
@@ -240,8 +256,10 @@ const Products = () => {
           product.category === category
         );
       }
+
+      const sortValue = searchParams.get('sort') || 'name';
+      filteredMockProducts = sortProducts(filteredMockProducts, sortValue);
       
-     
       const page = parseInt(searchParams.get('page')) || 1;
       const perPage = 12;
       const total = filteredMockProducts.length;
@@ -295,8 +313,8 @@ const Products = () => {
       );
     }
     
-    return filtered;
-  }, [products, priceRange, filtersApplied]);
+    return sortProducts(filtered, sortBy);
+  }, [products, priceRange, filtersApplied, sortBy]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
