@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store.jsx';
@@ -49,6 +48,118 @@ const Products = () => {
     { value: 'stock', label: 'Stock Disponible' }
   ];
 
+
+  const mockProducts = [
+    {
+      id: 1,
+      name: 'iPhone 15 Pro',
+      description: 'El iPhone más avanzado con chip A17 Pro y cámara de calidad profesional.',
+      price: 999.99,
+      stock: 50,
+      category: 'electronics',
+      image_url: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=300&fit=crop'
+    },
+    {
+      id: 2,
+      name: 'MacBook Air M2',
+      description: 'Potente y portátil con el chip M2 de Apple.',
+      price: 1299.99,
+      stock: 30,
+      category: 'electronics',
+      image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop'
+    },
+    {
+      id: 3,
+      name: 'Auriculares Inalámbricos',
+      description: 'Auriculares con cancelación de ruido y hasta 30 horas de batería.',
+      price: 199.99,
+      stock: 60,
+      category: 'electronics',
+      image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop'
+    },
+    {
+      id: 4,
+      name: 'Camiseta Premium',
+      description: 'Camiseta de algodón 100% orgánico, suave y cómoda.',
+      price: 29.99,
+      stock: 100,
+      category: 'clothing',
+      image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=300&fit=crop'
+    },
+    {
+      id: 5,
+      name: 'Zapatillas Deportivas',
+      description: 'Zapatillas de running con tecnología de amortiguación avanzada.',
+      price: 129.99,
+      stock: 80,
+      category: 'sports',
+      image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop'
+    },
+    {
+      id: 6,
+      name: 'Tablet 10 pulgadas',
+      description: 'Tablet con pantalla HD de 10 pulgadas, perfecta para trabajo y entretenimiento.',
+      price: 299.99,
+      stock: 45,
+      category: 'electronics',
+      image_url: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&h=300&fit=crop'
+    },
+    {
+      id: 7,
+      name: 'Smartwatch',
+      description: 'Reloj inteligente con monitor de salud y GPS integrado.',
+      price: 249.99,
+      stock: 35,
+      category: 'electronics',
+      image_url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=300&fit=crop'
+    },
+    {
+      id: 8,
+      name: 'Jeans Premium',
+      description: 'Jeans de corte clásico con tela de alta calidad.',
+      price: 79.99,
+      stock: 90,
+      category: 'clothing',
+      image_url: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=300&fit=crop'
+    },
+    {
+      id: 9,
+      name: 'Mochila Urbana',
+      description: 'Mochila resistente con compartimento para laptop.',
+      price: 59.99,
+      stock: 70,
+      category: 'accessories',
+      image_url: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=300&fit=crop'
+    },
+    {
+      id: 10,
+      name: 'Cámara Digital',
+      description: 'Cámara profesional con lente intercambiable.',
+      price: 699.99,
+      stock: 25,
+      category: 'electronics',
+      image_url: 'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=400&h=300&fit=crop'
+    },
+    {
+      id: 11,
+      name: 'Gafas de Sol',
+      description: 'Gafas con protección UV y diseño moderno.',
+      price: 89.99,
+      stock: 55,
+      category: 'accessories',
+      image_url: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&h=300&fit=crop'
+    },
+    {
+      id: 12,
+      name: 'Botella Térmica',
+      description: 'Botella de acero inoxidable que mantiene la temperatura 12 horas.',
+      price: 24.99,
+      stock: 120,
+      category: 'home',
+      image_url: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=400&h=300&fit=crop'
+    }
+  ];
+
   useEffect(() => {
     if (!state.categoriesLoaded || state.categories.length === 0) {
       loadCategories();
@@ -93,11 +204,62 @@ const Products = () => {
       };
 
       const response = await productsAPI.getProducts(params);
-      setProducts(response.data.products);
-      setPagination(response.data.pagination);
+      
+      
+      if (response.data && response.data.products && response.data.products.length > 0) {
+       
+        const productsWithImages = response.data.products.map(product => ({
+          ...product,
+          image_url: product.image_url || product.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop'
+        }));
+        
+        setProducts(productsWithImages);
+        setPagination(response.data.pagination);
+      } else {
+        throw new Error('No products received from API');
+      }
       
     } catch (error) {
-      toast.error(handleAPIError(error));
+      console.error('Error loading products:', error);
+      
+      
+      let filteredMockProducts = [...mockProducts];
+      
+      
+      if (searchParams.get('search')) {
+        const searchTerm = searchParams.get('search').toLowerCase();
+        filteredMockProducts = filteredMockProducts.filter(product => 
+          product.name.toLowerCase().includes(searchTerm) ||
+          product.description.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      if (searchParams.get('category')) {
+        const category = searchParams.get('category');
+        filteredMockProducts = filteredMockProducts.filter(product => 
+          product.category === category
+        );
+      }
+      
+     
+      const page = parseInt(searchParams.get('page')) || 1;
+      const perPage = 12;
+      const total = filteredMockProducts.length;
+      const totalPages = Math.ceil(total / perPage);
+      const startIndex = (page - 1) * perPage;
+      const endIndex = startIndex + perPage;
+      
+      setProducts(filteredMockProducts.slice(startIndex, endIndex));
+      setPagination({
+        page: page,
+        per_page: perPage,
+        total: total,
+        pages: totalPages,
+        has_next: page < totalPages,
+        has_prev: page > 1
+      });
+      
+      toast.info('Usando datos de demostración');
     } finally {
       setLoading(false);
     }
