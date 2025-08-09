@@ -12,7 +12,7 @@ const Footer = () => {
           
           <div className="md:col-span-1">
             <h3 className="text-2xl font-bold text-gradient bg-gradient-to-r from-primary-400 to-primary-300 bg-clip-text text-transparent mb-4">
-              Onix 2.0
+              Onix 2.0 ✨
             </h3>
             <p className="text-secondary-300 text-sm leading-relaxed">
               Tu tienda online de confianza. Productos de calidad con la mejor experiencia de compra.
@@ -21,17 +21,18 @@ const Footer = () => {
 
           
           <div>
-            <h4 className="font-semibold text-white mb-4">Enlaces Rápidos</h4>
+            <h4 className="font-semibold text-white mb-4">Enlaces Rápidos 🚀</h4>
             <ul className="space-y-2 text-sm">
               <li><Link to="/" className="text-secondary-300 hover:text-primary-400 transition-colors">Inicio</Link></li>
               <li><Link to="/products" className="text-secondary-300 hover:text-primary-400 transition-colors">Productos</Link></li>
+              <li><Link to="/products?category=electronics" className="text-secondary-300 hover:text-primary-400 transition-colors">Electrónicos</Link></li>
               <li><Link to="/products?category=clothing" className="text-secondary-300 hover:text-primary-400 transition-colors">Ropa</Link></li>
             </ul>
           </div>
 
          
           <div>
-            <h4 className="font-semibold text-white mb-4">Mi Cuenta</h4>
+            <h4 className="font-semibold text-white mb-4">Mi Cuenta 👤</h4>
             <ul className="space-y-2 text-sm">
               <li><Link to="/profile" className="text-secondary-300 hover:text-primary-400 transition-colors">Perfil</Link></li>
               <li><Link to="/orders" className="text-secondary-300 hover:text-primary-400 transition-colors">Mis Pedidos</Link></li>
@@ -42,7 +43,7 @@ const Footer = () => {
 
           
           <div>
-            <h4 className="font-semibold text-white mb-4">Contacto</h4>
+            <h4 className="font-semibold text-white mb-4">Contacto 📞</h4>
             <ul className="space-y-3 text-sm">
               <li className="flex items-center text-secondary-300">
                 <Mail className="w-4 h-4 mr-2" />
